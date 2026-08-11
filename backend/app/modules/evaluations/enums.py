@@ -1,0 +1,19 @@
+import enum
+
+
+class AttemptMode(str, enum.Enum):
+    LEARNING = "LEARNING"
+    TEST = "TEST"
+    RETAKE = "RETAKE"
+
+
+class InputMethod(str, enum.Enum):
+    KEYBOARD = "KEYBOARD"
+    VOICE = "VOICE"
+
+
+class Verdict(str, enum.Enum):
+    CORRECT_NATURAL = "CORRECT_NATURAL"
+    CORRECT_UNNATURAL = "CORRECT_UNNATURAL"
+    CORRECT_WITH_WRITING_ISSUES = "CORRECT_WITH_WRITING_ISSUES"
+    INCORRECT = "INCORRECT"

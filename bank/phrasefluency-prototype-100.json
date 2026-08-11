@@ -1,0 +1,1743 @@
+{
+  "name": "PhraseFluency Prototype Text Bank",
+  "version": 1,
+  "language_source": "fr",
+  "language_target": "en-US",
+  "description": "100 prototype texts for the first iteration of PhraseFluency.",
+  "distribution": {
+    "B1": 15,
+    "B2": 70,
+    "C1": 15
+  },
+  "texts": [
+    {
+      "french_text": "Tu ne crois pas qu'on devrait vérifier ça avant de fermer le ticket ?",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "support"
+      ],
+      "grammar_concepts": [
+        "negative_question",
+        "modal_should"
+      ],
+      "skills": [
+        "challenging_decision"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 1
+    },
+    {
+      "french_text": "Je pensais qu'ils auraient déjà terminé, mais apparemment ils attendent toujours notre confirmation.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "project"
+      ],
+      "grammar_concepts": [
+        "future_perfect_in_past",
+        "contrast"
+      ],
+      "skills": [
+        "status_update"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 2
+    },
+    {
+      "french_text": "Je ne voudrais pas qu'on interprète mon hésitation comme un refus ; j'essaie simplement de comprendre ce qu'on gagnerait réellement à changer d'approche.",
+      "difficulty": "C1",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "conditional_would",
+        "indirect_question"
+      ],
+      "skills": [
+        "nuanced_disagreement",
+        "clarifying_intent"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 3
+    },
+    {
+      "french_text": "Il pleuvait quand je suis parti de chez moi ce matin.",
+      "difficulty": "B1",
+      "contexts": [
+        "daily_life",
+        "weather"
+      ],
+      "grammar_concepts": [
+        "past_continuous",
+        "past_simple"
+      ],
+      "skills": [
+        "describing_past_event"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 4
+    },
+    {
+      "french_text": "Avant qu'on commence, est-ce que quelqu'un a une question sur ce qu'on vient de décider ?",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "meeting"
+      ],
+      "grammar_concepts": [
+        "direct_question",
+        "present_perfect"
+      ],
+      "skills": [
+        "facilitating_meeting"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 5
+    },
+    {
+      "french_text": "Je comprends ton point de vue, mais je ne suis pas convaincu que cette solution soit durable.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "contrast",
+        "uncertainty"
+      ],
+      "skills": [
+        "disagreeing_politely",
+        "evaluating_solution"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 6
+    },
+    {
+      "french_text": "Tu as déjà envoyé le document au client, n'est-ce pas ?",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "client"
+      ],
+      "grammar_concepts": [
+        "present_perfect",
+        "question_tag"
+      ],
+      "skills": [
+        "confirming_information"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 7
+    },
+    {
+      "french_text": "Tu avais raison, on aurait dû vérifier les permissions avant de relancer le service.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "incident"
+      ],
+      "grammar_concepts": [
+        "should_have",
+        "past_reference"
+      ],
+      "skills": [
+        "acknowledging_mistake"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 8
+    },
+    {
+      "french_text": "Je n'ai pas encore eu l'occasion de vérifier ce problème, mais je devrais pouvoir m'en occuper cet après-midi.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "workplace"
+      ],
+      "grammar_concepts": [
+        "present_perfect",
+        "modal_should"
+      ],
+      "skills": [
+        "status_update",
+        "managing_expectations"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 9
+    },
+    {
+      "french_text": "Je suppose qu'ils nous préviendront s'ils ont besoin de plus de temps.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "project"
+      ],
+      "grammar_concepts": [
+        "assumption",
+        "first_conditional"
+      ],
+      "skills": [
+        "expressing_assumption"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 10
+    },
+    {
+      "french_text": "Il n'est pas nécessaire de redémarrer tous les serveurs, seulement ceux qui ont reçu la nouvelle configuration.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "operations"
+      ],
+      "grammar_concepts": [
+        "passive_voice",
+        "relative_clause"
+      ],
+      "skills": [
+        "giving_instruction"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 11
+    },
+    {
+      "french_text": "Tu devrais vérifier l'adresse avant de partir.",
+      "difficulty": "B1",
+      "contexts": [
+        "daily_life",
+        "travel"
+      ],
+      "grammar_concepts": [
+        "modal_should",
+        "advice"
+      ],
+      "skills": [
+        "giving_advice"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 12
+    },
+    {
+      "french_text": "Est-ce que tu pourrais préciser ce que tu veux dire par « prêt pour la production » ?",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "meeting"
+      ],
+      "grammar_concepts": [
+        "polite_request",
+        "indirect_question"
+      ],
+      "skills": [
+        "clarifying"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 13
+    },
+    {
+      "french_text": "Si on continue comme ça, on risque de manquer la date prévue.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "deadline"
+      ],
+      "grammar_concepts": [
+        "first_conditional",
+        "risk_expression"
+      ],
+      "skills": [
+        "warning",
+        "planning"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 14
+    },
+    {
+      "french_text": "Si je comprends bien, tu proposes qu'on garde l'ancienne solution jusqu'à ce que la nouvelle soit stable.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "meeting"
+      ],
+      "grammar_concepts": [
+        "if_clause",
+        "reported_speech",
+        "until_clause"
+      ],
+      "skills": [
+        "confirming_understanding"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 15
+    },
+    {
+      "french_text": "J'aurais préféré qu'on en discute avant de faire le changement.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "change_management"
+      ],
+      "grammar_concepts": [
+        "would_have_preferred",
+        "past_reference"
+      ],
+      "skills": [
+        "expressing_regret",
+        "process_feedback"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 16
+    },
+    {
+      "french_text": "Je ne me rappelle plus exactement quand ce problème a commencé.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "incident"
+      ],
+      "grammar_concepts": [
+        "indirect_question",
+        "past_simple"
+      ],
+      "skills": [
+        "recalling_information"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 17
+    },
+    {
+      "french_text": "Plus on ajoute d'exceptions au processus, plus il devient difficile de savoir quel comportement est réellement attendu.",
+      "difficulty": "C1",
+      "contexts": [
+        "technical",
+        "process"
+      ],
+      "grammar_concepts": [
+        "the_more_the_more",
+        "indirect_question"
+      ],
+      "skills": [
+        "process_analysis"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 18
+    },
+    {
+      "french_text": "Ce n'est qu'après avoir relancé le service qu'on a remarqué que la configuration était incorrecte.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "incident"
+      ],
+      "grammar_concepts": [
+        "cleft_structure",
+        "past_reference"
+      ],
+      "skills": [
+        "explaining_sequence"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 19
+    },
+    {
+      "french_text": "Je vais vérifier de mon côté pendant que tu regardes les logs.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "troubleshooting"
+      ],
+      "grammar_concepts": [
+        "future_intention",
+        "while_clause"
+      ],
+      "skills": [
+        "coordinating_work"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 20
+    },
+    {
+      "french_text": "Pourquoi n'avons-nous pas été informés plus tôt de ce changement ?",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "communication"
+      ],
+      "grammar_concepts": [
+        "passive_voice",
+        "direct_question"
+      ],
+      "skills": [
+        "challenging_process"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 21
+    },
+    {
+      "french_text": "Est-ce que tu sais combien de temps il leur faudra pour terminer la migration ?",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "project"
+      ],
+      "grammar_concepts": [
+        "indirect_question",
+        "future"
+      ],
+      "skills": [
+        "asking_for_estimate"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 22
+    },
+    {
+      "french_text": "Il semble que le problème vienne du service externe et non de notre application.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "incident"
+      ],
+      "grammar_concepts": [
+        "it_seems_that",
+        "contrast"
+      ],
+      "skills": [
+        "diagnosing_issue"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 23
+    },
+    {
+      "french_text": "Il ne s'agit pas seulement de savoir si la solution fonctionne aujourd'hui, mais de déterminer si elle restera viable quand le volume augmentera.",
+      "difficulty": "C1",
+      "contexts": [
+        "technical",
+        "architecture"
+      ],
+      "grammar_concepts": [
+        "not_only_but",
+        "indirect_question",
+        "future"
+      ],
+      "skills": [
+        "scalability_reasoning"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 24
+    },
+    {
+      "french_text": "Il faudrait qu'on trouve une façon de rendre ce processus moins dépendant d'une intervention manuelle.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "automation"
+      ],
+      "grammar_concepts": [
+        "conditional_should",
+        "comparative"
+      ],
+      "skills": [
+        "process_improvement"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 25
+    },
+    {
+      "french_text": "Dès qu'on aura les résultats, on pourra décider quoi faire ensuite.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "time_clause",
+        "future"
+      ],
+      "skills": [
+        "planning_next_steps"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 26
+    },
+    {
+      "french_text": "Je n'ai pas voulu interrompre la discussion, mais je pense qu'on a oublié un point important.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "meeting"
+      ],
+      "grammar_concepts": [
+        "past_simple",
+        "present_perfect"
+      ],
+      "skills": [
+        "interjecting_politely"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 27
+    },
+    {
+      "french_text": "Je veux simplement m'assurer qu'on parle tous de la même chose avant de continuer.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "meeting"
+      ],
+      "grammar_concepts": [
+        "subordinate_clause"
+      ],
+      "skills": [
+        "clarifying",
+        "alignment"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 28
+    },
+    {
+      "french_text": "Ce n'est pas tant le changement lui-même qui m'inquiète que le fait qu'on n'ait pas suffisamment de visibilité sur ses conséquences.",
+      "difficulty": "C1",
+      "contexts": [
+        "workplace",
+        "change_management"
+      ],
+      "grammar_concepts": [
+        "cleft_structure",
+        "comparison"
+      ],
+      "skills": [
+        "expressing_concern",
+        "risk_assessment"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 29
+    },
+    {
+      "french_text": "Même s'ils corrigent le problème aujourd'hui, nous devrons quand même refaire les tests.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "testing"
+      ],
+      "grammar_concepts": [
+        "even_if",
+        "future"
+      ],
+      "skills": [
+        "explaining_requirement"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 30
+    },
+    {
+      "french_text": "Je n'ai pas encore eu le temps de lire ton message.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "communication"
+      ],
+      "grammar_concepts": [
+        "present_perfect",
+        "yet"
+      ],
+      "skills": [
+        "explaining_delay"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 31
+    },
+    {
+      "french_text": "Il faudra peut-être revoir notre plan si le client change encore ses priorités.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "client"
+      ],
+      "grammar_concepts": [
+        "may_need_to",
+        "if_clause"
+      ],
+      "skills": [
+        "planning",
+        "adapting"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 32
+    },
+    {
+      "french_text": "Tu peux me corriger si je me trompe, mais je crois que ce service n'est plus utilisé.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "meeting"
+      ],
+      "grammar_concepts": [
+        "if_clause",
+        "hedging"
+      ],
+      "skills": [
+        "expressing_uncertainty",
+        "inviting_correction"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 33
+    },
+    {
+      "french_text": "Pourquoi est-ce qu'on continue à utiliser cette approche si elle nous cause autant de problèmes ?",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "architecture"
+      ],
+      "grammar_concepts": [
+        "direct_question",
+        "if_clause"
+      ],
+      "skills": [
+        "challenging_approach"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 34
+    },
+    {
+      "french_text": "Même si je suis d'accord avec l'objectif, je ne pense pas que ce soit le bon moment pour faire ce changement.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "even_though",
+        "negative_opinion"
+      ],
+      "skills": [
+        "disagreeing_politely"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 35
+    },
+    {
+      "french_text": "On dirait que quelqu'un a modifié la configuration sans nous prévenir.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "configuration"
+      ],
+      "grammar_concepts": [
+        "it_looks_like",
+        "present_perfect"
+      ],
+      "skills": [
+        "diagnosing_issue"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 36
+    },
+    {
+      "french_text": "On aurait tort de conclure que le problème est réglé simplement parce qu'il ne s'est pas reproduit depuis le redémarrage.",
+      "difficulty": "C1",
+      "contexts": [
+        "technical",
+        "incident"
+      ],
+      "grammar_concepts": [
+        "would_be_wrong_to",
+        "present_perfect",
+        "because_clause"
+      ],
+      "skills": [
+        "cautioning",
+        "root_cause_analysis"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 37
+    },
+    {
+      "french_text": "Je vais te laisser finir, puis je te montrerai ce que j'ai trouvé.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "collaboration"
+      ],
+      "grammar_concepts": [
+        "future",
+        "time_sequence"
+      ],
+      "skills": [
+        "coordinating_conversation"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 38
+    },
+    {
+      "french_text": "Autant que je sache, rien n'indique que le problème vienne de notre côté, mais je préfère vérifier avant de leur répondre.",
+      "difficulty": "C1",
+      "contexts": [
+        "technical",
+        "client"
+      ],
+      "grammar_concepts": [
+        "hedging",
+        "subordinate_clause",
+        "preference"
+      ],
+      "skills": [
+        "nuanced_assessment",
+        "managing_expectations"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 39
+    },
+    {
+      "french_text": "Nous devons finir cette tâche avant la fin de la journée.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "deadline"
+      ],
+      "grammar_concepts": [
+        "modal_must",
+        "time_expression"
+      ],
+      "skills": [
+        "stating_requirement"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 40
+    },
+    {
+      "french_text": "Tu avais déjà travaillé avec cette technologie avant de rejoindre l'équipe ?",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "experience"
+      ],
+      "grammar_concepts": [
+        "past_perfect",
+        "direct_question"
+      ],
+      "skills": [
+        "asking_about_experience"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 41
+    },
+    {
+      "french_text": "Le déploiement s'est bien passé, mais on a découvert un autre problème juste après.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "deployment"
+      ],
+      "grammar_concepts": [
+        "past_simple",
+        "contrast"
+      ],
+      "skills": [
+        "incident_update"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 42
+    },
+    {
+      "french_text": "Je ne voudrais pas qu'on prenne une décision trop vite simplement parce qu'on est pressés.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "conditional_would",
+        "because_clause"
+      ],
+      "skills": [
+        "cautioning",
+        "risk_management"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 43
+    },
+    {
+      "french_text": "Est-ce que ça te dérange si on reporte notre appel d'une demi-heure ?",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "scheduling"
+      ],
+      "grammar_concepts": [
+        "polite_request",
+        "if_clause"
+      ],
+      "skills": [
+        "rescheduling"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 44
+    },
+    {
+      "french_text": "À ma connaissance, personne n'a encore confirmé que le changement pouvait être déployé aujourd'hui.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "deployment"
+      ],
+      "grammar_concepts": [
+        "present_perfect",
+        "reported_speech",
+        "modal_could"
+      ],
+      "skills": [
+        "expressing_uncertainty",
+        "status_update"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 45
+    },
+    {
+      "french_text": "Je n'ai rien contre cette solution, tant qu'elle reste facile à maintenir.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "architecture"
+      ],
+      "grammar_concepts": [
+        "as_long_as",
+        "negative_expression"
+      ],
+      "skills": [
+        "stating_condition"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 46
+    },
+    {
+      "french_text": "Ce serait plus simple si chacun mettait à jour sa partie avant la réunion.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "collaboration"
+      ],
+      "grammar_concepts": [
+        "second_conditional"
+      ],
+      "skills": [
+        "suggesting_process"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 47
+    },
+    {
+      "french_text": "Je ne sais pas encore si je pourrai être disponible à cette heure-là.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "scheduling"
+      ],
+      "grammar_concepts": [
+        "indirect_question",
+        "future_ability"
+      ],
+      "skills": [
+        "expressing_uncertainty"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 48
+    },
+    {
+      "french_text": "Pourquoi est-ce qu'on ne reporte pas ça à demain matin ?",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "planning"
+      ],
+      "grammar_concepts": [
+        "direct_question",
+        "suggestion"
+      ],
+      "skills": [
+        "making_suggestion"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 49
+    },
+    {
+      "french_text": "Je ne suis pas sûr que ce soit la meilleure façon de procéder.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "uncertainty"
+      ],
+      "skills": [
+        "disagreeing_politely"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 50
+    },
+    {
+      "french_text": "Ce que j'aimerais éviter, c'est qu'on optimise tellement le processus pour les cas normaux qu'il devienne impossible à gérer dès qu'une situation inhabituelle se présente.",
+      "difficulty": "C1",
+      "contexts": [
+        "technical",
+        "process"
+      ],
+      "grammar_concepts": [
+        "cleft_structure",
+        "result_clause",
+        "time_clause"
+      ],
+      "skills": [
+        "systems_thinking",
+        "risk_assessment"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 51
+    },
+    {
+      "french_text": "Je ne dis pas que ton idée est mauvaise, mais je pense qu'on peut faire plus simple.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "collaboration"
+      ],
+      "grammar_concepts": [
+        "negative_statement",
+        "contrast"
+      ],
+      "skills": [
+        "disagreeing_politely",
+        "suggesting"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 52
+    },
+    {
+      "french_text": "Je ne peux pas assister à la réunion cet après-midi parce que j'ai un rendez-vous.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "scheduling"
+      ],
+      "grammar_concepts": [
+        "modal_can",
+        "because_clause"
+      ],
+      "skills": [
+        "explaining_unavailability"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 53
+    },
+    {
+      "french_text": "Ils auraient dû nous dire plus tôt que le délai risquait de changer.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "project"
+      ],
+      "grammar_concepts": [
+        "should_have",
+        "reported_risk"
+      ],
+      "skills": [
+        "expressing_criticism"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 54
+    },
+    {
+      "french_text": "Si j'avais su que la réunion serait aussi longue, j'aurais apporté mon ordinateur.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "meeting"
+      ],
+      "grammar_concepts": [
+        "third_conditional"
+      ],
+      "skills": [
+        "expressing_regret"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 55
+    },
+    {
+      "french_text": "À moins qu'on découvre un autre problème, le correctif devrait être prêt pour demain.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "planning"
+      ],
+      "grammar_concepts": [
+        "unless",
+        "modal_should"
+      ],
+      "skills": [
+        "forecasting",
+        "status_update"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 56
+    },
+    {
+      "french_text": "On aurait pu éviter ce problème si la documentation avait été à jour.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "documentation"
+      ],
+      "grammar_concepts": [
+        "third_conditional",
+        "modal_could_have"
+      ],
+      "skills": [
+        "root_cause_analysis"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 57
+    },
+    {
+      "french_text": "Je pensais avoir compris le problème, mais plus je regarde les logs, moins j'en suis sûr.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "troubleshooting"
+      ],
+      "grammar_concepts": [
+        "past_reference",
+        "comparative_structure"
+      ],
+      "skills": [
+        "expressing_uncertainty"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 58
+    },
+    {
+      "french_text": "Je ne pense pas qu'on puisse résoudre ça aujourd'hui sans l'aide de l'équipe réseau.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "incident"
+      ],
+      "grammar_concepts": [
+        "negative_opinion",
+        "modal_can"
+      ],
+      "skills": [
+        "assessing_feasibility",
+        "asking_for_support"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 59
+    },
+    {
+      "french_text": "Je suis surpris qu'ils aient accepté de changer la date aussi tard.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "planning"
+      ],
+      "grammar_concepts": [
+        "present_perfect",
+        "emotion_clause"
+      ],
+      "skills": [
+        "expressing_surprise"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 60
+    },
+    {
+      "french_text": "J'allais lui répondre, mais j'ai réalisé que je n'avais pas toutes les informations.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "communication"
+      ],
+      "grammar_concepts": [
+        "past_continuous",
+        "past_perfect"
+      ],
+      "skills": [
+        "explaining_delay"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 61
+    },
+    {
+      "french_text": "Je pensais que le magasin fermait à neuf heures.",
+      "difficulty": "B1",
+      "contexts": [
+        "daily_life",
+        "shopping"
+      ],
+      "grammar_concepts": [
+        "past_simple",
+        "reported_thought"
+      ],
+      "skills": [
+        "expressing_assumption"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 62
+    },
+    {
+      "french_text": "Si tu veux, je peux t'aider à préparer la présentation.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "collaboration"
+      ],
+      "grammar_concepts": [
+        "first_conditional",
+        "modal_can"
+      ],
+      "skills": [
+        "offering_help"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 63
+    },
+    {
+      "french_text": "On ne saura pas vraiment si ça fonctionne tant qu'on ne l'aura pas testé en conditions réelles.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "testing"
+      ],
+      "grammar_concepts": [
+        "future",
+        "until_clause",
+        "present_perfect"
+      ],
+      "skills": [
+        "evaluating_solution"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 64
+    },
+    {
+      "french_text": "Tu peux fermer la demande une fois que le client aura confirmé que tout fonctionne.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "support"
+      ],
+      "grammar_concepts": [
+        "time_clause",
+        "future_context"
+      ],
+      "skills": [
+        "giving_instruction"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 65
+    },
+    {
+      "french_text": "On devrait probablement attendre leur réponse avant de prendre une décision, non ?",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "modal_should",
+        "question_tag"
+      ],
+      "skills": [
+        "suggesting",
+        "seeking_agreement"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 66
+    },
+    {
+      "french_text": "Je ne vois pas l'intérêt de changer quelque chose qui fonctionne déjà correctement.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "change_management"
+      ],
+      "grammar_concepts": [
+        "gerund",
+        "relative_clause"
+      ],
+      "skills": [
+        "questioning_change"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 67
+    },
+    {
+      "french_text": "Je peux m'en occuper, à condition que tu me donnes accès à l'environnement.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "access"
+      ],
+      "grammar_concepts": [
+        "provided_that",
+        "modal_can"
+      ],
+      "skills": [
+        "stating_condition"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 68
+    },
+    {
+      "french_text": "Si on avait pris le temps de clarifier les attentes dès le départ, on ne serait probablement pas en train de débattre de ce point maintenant.",
+      "difficulty": "C1",
+      "contexts": [
+        "workplace",
+        "project"
+      ],
+      "grammar_concepts": [
+        "mixed_conditional"
+      ],
+      "skills": [
+        "reflecting_on_process"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 69
+    },
+    {
+      "french_text": "Même si le problème semble mineur, je préfère qu'on le corrige avant la mise en production.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "deployment"
+      ],
+      "grammar_concepts": [
+        "even_though",
+        "preference"
+      ],
+      "skills": [
+        "risk_management",
+        "expressing_preference"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 70
+    },
+    {
+      "french_text": "Je travaille habituellement de la maison le vendredi, mais cette semaine je vais au bureau.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "routine"
+      ],
+      "grammar_concepts": [
+        "present_simple",
+        "present_continuous"
+      ],
+      "skills": [
+        "describing_routine",
+        "explaining_change"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 71
+    },
+    {
+      "french_text": "Je préférerais qu'on formule la réponse de manière à reconnaître le problème sans donner l'impression qu'on accepte toute la responsabilité.",
+      "difficulty": "C1",
+      "contexts": [
+        "workplace",
+        "client"
+      ],
+      "grammar_concepts": [
+        "would_prefer",
+        "purpose_clause"
+      ],
+      "skills": [
+        "stakeholder_communication",
+        "nuance"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 72
+    },
+    {
+      "french_text": "Je préférerais qu'on teste d'abord sur un environnement moins critique.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "testing"
+      ],
+      "grammar_concepts": [
+        "would_prefer"
+      ],
+      "skills": [
+        "risk_mitigation"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 73
+    },
+    {
+      "french_text": "Je ne remettrais pas forcément toute l'architecture en question, mais il serait peut-être temps de revoir certaines hypothèses qu'on tient pour acquises.",
+      "difficulty": "C1",
+      "contexts": [
+        "technical",
+        "architecture"
+      ],
+      "grammar_concepts": [
+        "conditional_would",
+        "hedging"
+      ],
+      "skills": [
+        "architectural_reasoning",
+        "challenging_assumptions"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 74
+    },
+    {
+      "french_text": "On n'est pas obligés de tout résoudre aujourd'hui, tant qu'on sait ce qui reste à faire.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "planning"
+      ],
+      "grammar_concepts": [
+        "not_have_to",
+        "as_long_as"
+      ],
+      "skills": [
+        "prioritizing"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 75
+    },
+    {
+      "french_text": "Je comprends pourquoi ils veulent avancer rapidement, mais je préférerais qu'on évite de créer un précédent qu'on regrettera plus tard.",
+      "difficulty": "C1",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "would_prefer",
+        "relative_clause"
+      ],
+      "skills": [
+        "strategic_reasoning",
+        "disagreeing_politely"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 76
+    },
+    {
+      "french_text": "Tu pourrais me prévenir dès que tu auras terminé ?",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "collaboration"
+      ],
+      "grammar_concepts": [
+        "polite_request",
+        "time_clause"
+      ],
+      "skills": [
+        "requesting_follow_up"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 77
+    },
+    {
+      "french_text": "J'aimerais comprendre pourquoi ce problème ne se produit qu'en production.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "incident"
+      ],
+      "grammar_concepts": [
+        "would_like",
+        "indirect_question"
+      ],
+      "skills": [
+        "investigating_issue"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 78
+    },
+    {
+      "french_text": "On pourrait gagner du temps si on automatisait cette vérification au lieu de la faire manuellement.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "automation"
+      ],
+      "grammar_concepts": [
+        "second_conditional",
+        "instead_of"
+      ],
+      "skills": [
+        "suggesting_improvement"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 79
+    },
+    {
+      "french_text": "Tu n'aurais pas par hasard le lien vers le document dont on parlait hier ?",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "communication"
+      ],
+      "grammar_concepts": [
+        "polite_request",
+        "relative_clause"
+      ],
+      "skills": [
+        "requesting_information"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 80
+    },
+    {
+      "french_text": "Je ne voudrais pas promettre quelque chose qu'on n'est pas certains de pouvoir livrer.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "client"
+      ],
+      "grammar_concepts": [
+        "conditional_would",
+        "relative_clause"
+      ],
+      "skills": [
+        "managing_expectations"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 81
+    },
+    {
+      "french_text": "Je ne m'attendais pas à ce qu'il accepte aussi rapidement.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "expectation",
+        "past_simple"
+      ],
+      "skills": [
+        "expressing_surprise"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 82
+    },
+    {
+      "french_text": "Ce n'est pas que je sois contre l'idée, mais je pense qu'on devrait d'abord évaluer les risques.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "contrast",
+        "modal_should"
+      ],
+      "skills": [
+        "disagreeing_politely",
+        "risk_assessment"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 83
+    },
+    {
+      "french_text": "À supposer qu'on obtienne l'approbation aujourd'hui, il nous resterait quand même plusieurs dépendances à régler avant de pouvoir déployer.",
+      "difficulty": "C1",
+      "contexts": [
+        "technical",
+        "deployment"
+      ],
+      "grammar_concepts": [
+        "assuming_that",
+        "conditional_would",
+        "before_clause"
+      ],
+      "skills": [
+        "planning",
+        "dependency_management"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 84
+    },
+    {
+      "french_text": "Je serais étonné qu'ils refusent complètement l'idée, surtout si on leur présente une option qui réduit le risque sans retarder le projet.",
+      "difficulty": "C1",
+      "contexts": [
+        "workplace",
+        "stakeholder"
+      ],
+      "grammar_concepts": [
+        "conditional_would",
+        "if_clause"
+      ],
+      "skills": [
+        "predicting_reaction",
+        "persuasion"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 85
+    },
+    {
+      "french_text": "Nous avons commencé plus tard que prévu, mais nous avons quand même terminé à temps.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "project"
+      ],
+      "grammar_concepts": [
+        "past_simple",
+        "contrast"
+      ],
+      "skills": [
+        "reporting_progress"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 86
+    },
+    {
+      "french_text": "Je ne pensais pas que ce changement aurait autant d'impact sur les autres équipes.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "change_management"
+      ],
+      "grammar_concepts": [
+        "reported_thought",
+        "conditional_would"
+      ],
+      "skills": [
+        "assessing_impact"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 87
+    },
+    {
+      "french_text": "Je peux te rappeler dans quelques minutes si ce n'est pas urgent.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "communication"
+      ],
+      "grammar_concepts": [
+        "first_conditional",
+        "modal_can"
+      ],
+      "skills": [
+        "managing_interruption"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 88
+    },
+    {
+      "french_text": "Je ne sais pas s'il sera disponible demain.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "scheduling"
+      ],
+      "grammar_concepts": [
+        "indirect_question",
+        "future"
+      ],
+      "skills": [
+        "expressing_uncertainty"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 89
+    },
+    {
+      "french_text": "Ça ne me dérange pas de rester un peu plus tard si ça nous permet de terminer aujourd'hui.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "deadline"
+      ],
+      "grammar_concepts": [
+        "gerund",
+        "if_clause"
+      ],
+      "skills": [
+        "offering_flexibility"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 90
+    },
+    {
+      "french_text": "Même si leur proposition est raisonnable sur le papier, je ne suis pas convaincu qu'elle tienne compte de toutes les contraintes opérationnelles.",
+      "difficulty": "C1",
+      "contexts": [
+        "workplace",
+        "decision"
+      ],
+      "grammar_concepts": [
+        "even_though",
+        "negative_opinion"
+      ],
+      "skills": [
+        "evaluating_proposal",
+        "disagreeing_politely"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 91
+    },
+    {
+      "french_text": "Tu n'as pas besoin de venir plus tôt demain.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "scheduling"
+      ],
+      "grammar_concepts": [
+        "need_to",
+        "negative"
+      ],
+      "skills": [
+        "giving_instruction"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 92
+    },
+    {
+      "french_text": "Je me demandais si tu pouvais jeter un coup d'œil à ce document avant qu'on l'envoie au client.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "client"
+      ],
+      "grammar_concepts": [
+        "polite_request",
+        "past_continuous"
+      ],
+      "skills": [
+        "requesting_review"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 93
+    },
+    {
+      "french_text": "Si tout se passe comme prévu, nous devrions avoir terminé avant midi.",
+      "difficulty": "B2",
+      "contexts": [
+        "workplace",
+        "planning"
+      ],
+      "grammar_concepts": [
+        "first_conditional",
+        "modal_should"
+      ],
+      "skills": [
+        "forecasting"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 94
+    },
+    {
+      "french_text": "Je préfère vérifier une deuxième fois plutôt que de supposer que tout fonctionne.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "quality"
+      ],
+      "grammar_concepts": [
+        "rather_than",
+        "gerund"
+      ],
+      "skills": [
+        "explaining_approach"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 95
+    },
+    {
+      "french_text": "On peut toujours revenir à la version précédente si quelque chose ne fonctionne pas.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "deployment"
+      ],
+      "grammar_concepts": [
+        "first_conditional",
+        "modal_can"
+      ],
+      "skills": [
+        "risk_mitigation"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 96
+    },
+    {
+      "french_text": "Aussi utile que soit cette automatisation, elle ne nous dispense pas de comprendre ce qui se passe lorsqu'elle échoue.",
+      "difficulty": "C1",
+      "contexts": [
+        "technical",
+        "automation"
+      ],
+      "grammar_concepts": [
+        "concession",
+        "negative_expression"
+      ],
+      "skills": [
+        "balancing_tradeoffs"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 97
+    },
+    {
+      "french_text": "Est-ce que tu peux me montrer comment tu as fait ça ?",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "collaboration"
+      ],
+      "grammar_concepts": [
+        "direct_question",
+        "past_simple"
+      ],
+      "skills": [
+        "asking_for_help"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 98
+    },
+    {
+      "french_text": "Ça fait deux ans que je travaille avec cette équipe.",
+      "difficulty": "B1",
+      "contexts": [
+        "workplace",
+        "experience"
+      ],
+      "grammar_concepts": [
+        "present_perfect",
+        "duration"
+      ],
+      "skills": [
+        "describing_experience"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 99
+    },
+    {
+      "french_text": "Je pensais pouvoir régler ça rapidement, mais le problème est plus complexe que prévu.",
+      "difficulty": "B2",
+      "contexts": [
+        "technical",
+        "troubleshooting"
+      ],
+      "grammar_concepts": [
+        "past_expectation",
+        "comparative"
+      ],
+      "skills": [
+        "managing_expectations"
+      ],
+      "exercise_type": "TRANSLATION",
+      "id": 100
+    }
+  ]
+}

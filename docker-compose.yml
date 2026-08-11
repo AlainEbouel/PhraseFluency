@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-phrasefluency}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phrasefluency}
+      POSTGRES_DB: ${POSTGRES_DB:-phrasefluency}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-phrasefluency}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-phrasefluency}:${POSTGRES_PASSWORD:-phrasefluency}@postgres:5432/${POSTGRES_DB:-phrasefluency}
+      SESSION_SECRET: ${SESSION_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-30}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
+      TTS_VOICE: ${TTS_VOICE:-alloy}
+      AUDIO_STORAGE_PATH: /data/audio
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - audio_data:/data/audio
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
+volumes:
+  postgres_data:
+  audio_data:
