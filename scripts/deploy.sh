@@ -39,8 +39,17 @@ if [ "$ready" != true ]; then
 fi
 
 echo "==> Verifying the site locally..."
-if ! curl -sk -o /dev/null --resolve "${PUBLIC_DOMAIN}:443:127.0.0.1" "https://${PUBLIC_DOMAIN}/"; then
+site_up=false
+for _ in $(seq 1 15); do
+  if curl -skf -o /dev/null --resolve "${PUBLIC_DOMAIN}:443:127.0.0.1" "https://${PUBLIC_DOMAIN}/"; then
+    site_up=true
+    break
+  fi
+  sleep 2
+done
+if [ "$site_up" != true ]; then
   echo "ERROR: local site check failed after deploy." >&2
+  docker compose -f docker-compose.prod.yml logs caddy --tail 50
   exit 1
 fi
 
