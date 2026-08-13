@@ -11,7 +11,7 @@ from app.modules.evaluations.error_categories import ERROR_CATEGORIES
 from app.modules.evaluations.ports import EvaluationRequest, GrammarExplanationRequest, ReferenceGenerationRequest
 
 REFERENCE_PROMPT_VERSION = "reference-v1"
-EVALUATION_PROMPT_VERSION = "evaluation-v1"
+EVALUATION_PROMPT_VERSION = "evaluation-v2"
 EXPLANATION_PROMPT_VERSION = "explanation-v1"
 
 REFERENCE_SYSTEM_PROMPT = """You are a linguistic content expert for PhraseFluency, an app that \
@@ -53,12 +53,21 @@ a different wording was preferred or expected — if the learner's own formulati
 something a native speaker would naturally say, it is CORRECT_NATURAL even if it differs \
 from the reference.
 - CORRECT_UNNATURAL: understandable and substantially grammatically correct, but genuinely \
-stiff, literal, unusual, or unlikely in normal American usage (not merely "different").
-- CORRECT_WITH_WRITING_ISSUES: the answer would be judged fully correct and natural if \
-spoken aloud, but contains issues that only exist in writing, such as missing \
-apostrophes or missing capitalization (e.g. "i dont think hes coming"). You MUST provide \
-corrected_answer with the properly written form. Do not use this verdict for grammar \
-errors that would also be errors in speech.
+stiff, literal, unusual, or unlikely in normal American usage (not merely "different"). \
+This is about the CHOICE of words/structure, never about how something is spelled or \
+punctuated — a misspelling never makes an otherwise-natural answer "unnatural".
+- CORRECT_WITH_WRITING_ISSUES: decide this by asking "if the learner spoke this answer \
+aloud exactly as intended, would it sound identical to a natural native production?" If \
+yes, and the ONLY problems are things that exist purely on the page — missing \
+apostrophes, missing/wrong capitalization, or a misspelled word (e.g. "recieve" for \
+"receive", "wich" for "which") that a listener would not perceive as an error when spoken \
+— use this verdict, even if it is a real spelling mistake and not just a contraction or \
+capitalization issue. Examples: "i dont think hes coming" or "I havent had time to reveiw \
+it". You MUST provide corrected_answer with the properly written form, and list each \
+specific issue in writing_issues (e.g. "missing apostrophe in \"dont\"", "misspelled \
+\"reveiw\" -> \"review\""). Do not use CORRECT_UNNATURAL or INCORRECT for an answer whose \
+only flaws are writing-only in this sense — writing issues always take precedence over \
+"unnatural" when both could arguably apply.
 - INCORRECT: the meaning is not preserved, or there is a meaningful grammar error that a \
 native speaker would not make and that changes or obscures the meaning.
 

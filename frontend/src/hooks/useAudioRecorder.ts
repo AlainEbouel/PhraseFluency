@@ -8,6 +8,14 @@ export function useAudioRecorder(onRecorded: (blob: Blob) => void) {
 
   const start = useCallback(async () => {
     setError(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError(
+        window.isSecureContext
+          ? "Le microphone n'est pas pris en charge par ce navigateur."
+          : "Le microphone nécessite une connexion sécurisée (HTTPS). Utilisez le clavier sur cette adresse."
+      );
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);

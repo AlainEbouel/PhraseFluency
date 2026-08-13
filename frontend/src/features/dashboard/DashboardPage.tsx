@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Layers, Sparkles, Target, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { fetchDashboard } from "../../api/statistics";
 import type { Dashboard } from "../../api/statistics";
+import { Meter } from "../../components/Meter";
 
 export function DashboardPage() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -23,26 +25,44 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard">
-      <h1>Tableau de bord</h1>
+      <div className="page-header">
+        <h1>Tableau de bord</h1>
+        <p className="page-subtitle">Votre progression en anglais américain, en un coup d'œil.</p>
+      </div>
 
       <div className="stat-tile-row">
-        <div className="stat-tile">
+        <div className="stat-tile stat-tile-accent-good">
+          <span className="stat-tile-icon">
+            <Trophy />
+          </span>
           <div className="stat-tile-value">{dashboard.mastered_count}</div>
           <div className="stat-tile-label">Textes maîtrisés</div>
         </div>
         <div className="stat-tile">
+          <span className="stat-tile-icon">
+            <Layers />
+          </span>
           <div className="stat-tile-value">
             {dashboard.active_count}/{dashboard.active_target}
           </div>
           <div className="stat-tile-label">Banque active</div>
+          <Meter value={dashboard.active_count} max={dashboard.active_target} tone="brand" />
         </div>
-        <div className="stat-tile">
+        <div className="stat-tile stat-tile-accent-aqua">
+          <span className="stat-tile-icon">
+            <Sparkles />
+          </span>
           <div className="stat-tile-value">{Math.round(dashboard.natural_answer_rate * 100)}%</div>
           <div className="stat-tile-label">Taux de naturel</div>
+          <Meter value={dashboard.natural_answer_rate * 100} max={100} tone="good" />
         </div>
-        <div className="stat-tile">
+        <div className="stat-tile stat-tile-accent-violet">
+          <span className="stat-tile-icon">
+            <Target />
+          </span>
           <div className="stat-tile-value">{Math.round(dashboard.overall_success_rate * 100)}%</div>
           <div className="stat-tile-label">Taux de réussite</div>
+          <Meter value={dashboard.overall_success_rate * 100} max={100} tone="good" />
         </div>
       </div>
 

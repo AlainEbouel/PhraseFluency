@@ -19,7 +19,17 @@ Additional corpora can later be generated/imported as CSV or JSON.
 
 ## CEFR distribution
 
-For every 100 texts:
+The app now supports the full CEFR scale (A1-C2; see
+docs/learning-engine.md, "Level selection and the weighted active
+bank"), since each user's active bank is composed around whichever
+level they choose. The distribution below was the target for the
+initial prototype batch (B1/B2/C1 only, written before level selection
+existed) and is kept here as a historical baseline; future generation
+batches should extend coverage to A1, A2, and C2 as well so the
+weighted selection has real content to draw from at every level,
+rather than immediately falling back to whatever's available.
+
+Initial batch, for every 100 texts:
 
 -   B1: 15%
 -   B2: 70%
@@ -30,8 +40,6 @@ For 500:
 -   B1: 75
 -   B2: 350
 -   C1: 75
-
-No A1/A2 target texts.
 
 B1 should consolidate useful structures that need automaticity.
 

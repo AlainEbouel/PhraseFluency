@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,21 @@ def create_user(db: Session, email: str, password: str, role: UserRole = UserRol
 
 def get_user_by_email(db: Session, email: str) -> User | None:
     return db.scalar(select(User).where(User.email == email))
+
+
+def set_user_active(
+    db: Session, user_id: uuid.UUID, active: bool, *, acting_user_id: uuid.UUID | None = None
+) -> User:
+    if not active and user_id == acting_user_id:
+        raise ValueError("You cannot disable your own account")
+    user = db.get(User, user_id)
+    if user is None:
+        raise ValueError("User not found")
+    user.is_active = active
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 def bootstrap_admin(db: Session, email: str, password: str) -> User:

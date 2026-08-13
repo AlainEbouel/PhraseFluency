@@ -54,8 +54,17 @@ def parse_json(content: bytes) -> list[ImportRow]:
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ImportParseError(f"Invalid JSON: {exc}") from exc
 
+    # Accept either a bare array, or a corpus envelope with metadata
+    # (name/version/distribution/...) and the rows under a "texts" key —
+    # the shape generated for the initial prototype corpus.
+    if isinstance(data, dict) and isinstance(data.get("texts"), list):
+        data = data["texts"]
+
     if not isinstance(data, list):
-        raise ImportParseError("JSON import must be a top-level array of objects")
+        raise ImportParseError(
+            "JSON import must be a top-level array of objects, "
+            "or an object with a top-level 'texts' array"
+        )
 
     rows = []
     for raw in data:

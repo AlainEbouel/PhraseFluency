@@ -16,7 +16,9 @@ from app.modules.admin.schemas import (
 from app.modules.auth.dependencies import require_admin
 from app.modules.imports.models import ImportBatch
 from app.modules.texts import service as texts_service
+from app.modules.users import service as users_service
 from app.modules.users.models import User
+from app.modules.users.schemas import UserCreate, UserOut
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -112,3 +114,42 @@ def list_import_batches(
 def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     users = db.scalars(select(User).order_by(User.created_at)).all()
     return [UserSummaryOut.model_validate(u) for u in users]
+
+
+@router.post("/users", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+def create_user(
+    payload: UserCreate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    if users_service.get_user_by_email(db, payload.email) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
+    return users_service.create_user(db, payload.email, payload.password, payload.role)
+
+
+@router.patch("/users/{user_id}/disable", response_model=UserSummaryOut)
+def disable_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    if user_id == _admin.id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "You cannot disable your own account")
+    try:
+        user = users_service.set_user_active(db, user_id, False, acting_user_id=_admin.id)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return UserSummaryOut.model_validate(user)
+
+
+@router.patch("/users/{user_id}/enable", response_model=UserSummaryOut)
+def enable_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    try:
+        user = users_service.set_user_active(db, user_id, True)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return UserSummaryOut.model_validate(user)

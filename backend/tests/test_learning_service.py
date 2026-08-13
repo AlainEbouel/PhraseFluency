@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import select
+import pytest
+from sqlalchemy import func, select
 
 from app.modules.evaluations.engine import EvaluationEngine, EvaluationEngineError
 from app.modules.evaluations.enums import InputMethod, Verdict
@@ -10,7 +11,7 @@ from app.modules.learning import service
 from app.modules.learning.enums import TextProgressStatus
 from app.modules.learning.models import UserTextProgress
 from app.modules.tests.models import Test, TestText
-from app.modules.texts.models import Difficulty, ExerciseType, Text
+from app.modules.texts.models import Difficulty, ExerciseType, Text, TextVersion
 from app.modules.users.models import User, UserRole
 
 
@@ -66,12 +67,20 @@ def make_user(db_session) -> User:
     user = User(email=f"{uuid.uuid4()}@phrasefluency.app", password_hash="x", role=UserRole.USER)
     db_session.add(user)
     db_session.flush()
+    # All texts made by make_text() below default to B2, so choosing B2
+    # here keeps existing activation tests exercising realistic content.
+    service.choose_level(db_session, user.id, Difficulty.B2)
     return user
 
 
-def make_text(db_session, french_text=None) -> Text:
-    from app.modules.texts.models import TextVersion
+def make_user_without_level(db_session) -> User:
+    user = User(email=f"{uuid.uuid4()}@phrasefluency.app", password_hash="x", role=UserRole.USER)
+    db_session.add(user)
+    db_session.flush()
+    return user
 
+
+def make_text(db_session, french_text=None, difficulty=Difficulty.B2) -> Text:
     text = Text(source="test")
     db_session.add(text)
     db_session.flush()
@@ -79,7 +88,7 @@ def make_text(db_session, french_text=None) -> Text:
         text_id=text.id,
         french_text=french_text or f"Texte {uuid.uuid4()}",
         exercise_type=ExerciseType.TRANSLATION,
-        difficulty=Difficulty.B2,
+        difficulty=difficulty,
         contexts=[],
     )
     db_session.add(version)
@@ -123,6 +132,136 @@ class TestActiveBankBootstrap:
         activated_again = service.activate_up_to_bank_target(db_session, user.id, target=3)
 
         assert activated_again == 0
+
+
+class TestLevelSelection:
+    def test_nothing_activates_before_a_level_is_chosen(self, db_session):
+        user = make_user_without_level(db_session)
+        make_text(db_session)
+
+        activated = service.activate_up_to_bank_target(db_session, user.id, target=5)
+
+        assert activated == 0
+
+    def test_get_next_exercise_returns_none_before_a_level_is_chosen(self, db_session):
+        user = make_user_without_level(db_session)
+        make_text(db_session)
+
+        assert service.get_next_exercise(db_session, user) is None
+
+    def test_choosing_a_level_immediately_fills_the_bank(self, db_session):
+        user = make_user_without_level(db_session)
+        for _ in range(5):
+            make_text(db_session, difficulty=Difficulty.B2)
+
+        service.choose_level(db_session, user.id, Difficulty.B2)
+
+        active = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id, UserTextProgress.status == TextProgressStatus.ACTIVE
+            )
+        ).all()
+        assert len(active) == 5
+
+    def test_bulk_fill_respects_the_tier_ratio_when_supply_is_ample(self, db_session):
+        user = make_user_without_level(db_session)
+        for _ in range(20):
+            make_text(db_session, difficulty=Difficulty.B1)
+        for _ in range(20):
+            make_text(db_session, difficulty=Difficulty.B2)
+        for _ in range(20):
+            make_text(db_session, difficulty=Difficulty.C1)
+        service.get_or_create_learning_state(db_session, user.id).current_level = Difficulty.B1
+        db_session.commit()
+
+        activated = service.activate_up_to_bank_target(db_session, user.id, target=20)
+
+        assert activated == 20
+        counts = _active_counts_by_difficulty(db_session, user.id)
+        # tier_weights(B1) = {B1: 0.15, B2: 0.75, C1: 0.10} of 20 slots.
+        assert counts == {Difficulty.B1: 3, Difficulty.B2: 15, Difficulty.C1: 2}
+
+    def test_a_dry_tier_falls_back_to_the_other_weighted_tiers(self, db_session):
+        user = make_user_without_level(db_session)
+        for _ in range(10):
+            make_text(db_session, difficulty=Difficulty.B2)
+        for _ in range(10):
+            make_text(db_session, difficulty=Difficulty.C1)
+        # No C2 texts at all: tier_weights(B2) = {B2: 0.15, C1: 0.75, C2: 0.10},
+        # so every time C2 is prioritized it must fall through to B2/C1.
+        service.get_or_create_learning_state(db_session, user.id).current_level = Difficulty.B2
+        db_session.commit()
+
+        activated = service.activate_up_to_bank_target(db_session, user.id, target=15)
+
+        assert activated == 15
+        counts = _active_counts_by_difficulty(db_session, user.id)
+        assert counts.get(Difficulty.C2, 0) == 0
+        assert counts[Difficulty.B2] + counts[Difficulty.C1] == 15
+
+    def test_exhausting_all_weighted_tiers_falls_back_to_the_whole_corpus(self, db_session):
+        user = make_user_without_level(db_session)
+        make_text(db_session, difficulty=Difficulty.A1)  # not one of B2's weighted tiers
+        service.get_or_create_learning_state(db_session, user.id).current_level = Difficulty.B2
+        db_session.commit()
+
+        activated = service.activate_up_to_bank_target(db_session, user.id, target=5)
+
+        assert activated == 1
+        counts = _active_counts_by_difficulty(db_session, user.id)
+        assert counts == {Difficulty.A1: 1}
+
+    def test_replenishment_prefers_the_most_deficient_tier(self, db_session):
+        user = make_user_without_level(db_session)
+        for _ in range(10):
+            make_text(db_session, difficulty=Difficulty.B2)
+        for _ in range(10):
+            make_text(db_session, difficulty=Difficulty.C1)
+        service.get_or_create_learning_state(db_session, user.id).current_level = Difficulty.B2
+        db_session.commit()
+        service.activate_up_to_bank_target(db_session, user.id, target=8)
+        counts_before = _active_counts_by_difficulty(db_session, user.id)
+        assert counts_before == {Difficulty.C1: 6, Difficulty.B2: 2}
+
+        # Free one C1 slot directly (bypassing manually_acquire_text's own
+        # default-100 top-up) to isolate exactly one replacement pick.
+        one_active_c1 = db_session.scalar(
+            select(UserTextProgress)
+            .join(Text, Text.id == UserTextProgress.text_id)
+            .join(TextVersion, TextVersion.id == Text.current_version_id)
+            .where(
+                UserTextProgress.user_id == user.id,
+                UserTextProgress.status == TextProgressStatus.ACTIVE,
+                TextVersion.difficulty == Difficulty.C1,
+            )
+            .limit(1)
+        )
+        one_active_c1.status = TextProgressStatus.MASTERED
+        db_session.add(one_active_c1)
+        db_session.commit()
+
+        # C1 is now furthest below its target share (5 active vs. 6 target
+        # at bank size 8), so the single replacement should be C1 again.
+        activated = service.activate_up_to_bank_target(db_session, user.id, target=8)
+
+        assert activated == 1
+        counts_after = _active_counts_by_difficulty(db_session, user.id)
+        assert counts_after == {Difficulty.C1: 6, Difficulty.B2: 2}
+
+
+def _active_counts_by_difficulty(db_session, user_id) -> dict:
+    rows = db_session.execute(
+        select(TextVersion.difficulty, func.count())
+        .select_from(UserTextProgress)
+        .join(Text, Text.id == UserTextProgress.text_id)
+        .join(TextVersion, TextVersion.id == Text.current_version_id)
+        .where(
+            UserTextProgress.user_id == user_id,
+            UserTextProgress.status == TextProgressStatus.ACTIVE,
+        )
+        .group_by(TextVersion.difficulty)
+    ).all()
+    return dict(rows)
 
 
 class TestGetNextExercise:
@@ -183,19 +322,19 @@ class TestSubmitAnswer:
         assert result.progress.mastery_score == 2
         assert result.progress.status == TextProgressStatus.ACTIVE
 
-    def test_three_natural_answers_masters_the_text(self, db_session):
+    def test_two_natural_answers_masters_the_text(self, db_session):
+        # Default required_score is 4 (2 natural-answer equivalents at +2 each).
         user = make_user(db_session)
         make_text(db_session)
         engine = FakeEngine(
             evaluation_results=[
                 eval_result(Verdict.CORRECT_NATURAL),
                 eval_result(Verdict.CORRECT_NATURAL),
-                eval_result(Verdict.CORRECT_NATURAL),
             ]
         )
 
         result = None
-        for _ in range(3):
+        for _ in range(2):
             next_ex = service.get_next_exercise(db_session, user)
             result = service.submit_answer(
                 db_session,
@@ -257,6 +396,33 @@ class TestSubmitAnswer:
         progress = db_session.get(UserTextProgress, (user.id, next_ex.progress.text_id))
         assert progress.mastery_score == 2
 
+    def test_duplicate_submission_id_does_not_leak_across_users(self, db_session):
+        text = make_text(db_session)
+        user_a = make_user(db_session)
+        user_b = make_user(db_session)
+        service.get_next_exercise(db_session, user_a)
+        service.get_next_exercise(db_session, user_b)
+        engine = FakeEngine(
+            evaluation_results=[eval_result(Verdict.CORRECT_NATURAL), eval_result(Verdict.INCORRECT)]
+        )
+        submission_id = str(uuid.uuid4())
+
+        result_a = service.submit_answer(
+            db_session, engine, user_a, text_id=text.id,
+            user_answer="user a's answer", input_method=InputMethod.KEYBOARD,
+            submission_id=submission_id,
+        )
+        result_b = service.submit_answer(
+            db_session, engine, user_b, text_id=text.id,
+            user_answer="user b's answer", input_method=InputMethod.KEYBOARD,
+            submission_id=submission_id,
+        )
+
+        assert result_a.evaluation.id != result_b.evaluation.id
+        assert engine.evaluate_calls == 2
+        assert result_a.evaluation.verdict == Verdict.CORRECT_NATURAL
+        assert result_b.evaluation.verdict == Verdict.INCORRECT
+
     def test_incorrect_answer_schedules_review_after_20(self, db_session):
         user = make_user(db_session)
         make_text(db_session)
@@ -303,26 +469,215 @@ class TestSubmitAnswer:
         # Directly targets each known text_id rather than going through
         # get_next_exercise, so this test doesn't depend on rotation order.
         for text_id in text_ids:
-            # One unnatural then three naturals: 1+2+2+2=7 >= required_score(6),
+            # One unnatural then two naturals: 1+2+2=5 >= required_score(4),
             # imperfect record -> WAITING_FOR_TEST_ASSIGNMENT.
             engine.evaluation_results = [
                 eval_result(Verdict.CORRECT_UNNATURAL),
                 eval_result(Verdict.CORRECT_NATURAL),
                 eval_result(Verdict.CORRECT_NATURAL),
-                eval_result(Verdict.CORRECT_NATURAL),
             ]
             engine.evaluate_calls = 0
-            for _ in range(4):
+            for _ in range(3):
+                # finalize=True: this test is about cumulative scoring and
+                # test-assignment, not the writing-issue/unnatural retry UX.
                 service.submit_answer(
                     db_session, engine, user, text_id=text_id,
                     user_answer="answer", input_method=InputMethod.KEYBOARD,
-                    submission_id=str(uuid.uuid4()),
+                    submission_id=str(uuid.uuid4()), finalize=True,
                 )
 
         tests = db_session.scalars(select(Test).where(Test.user_id == user.id)).all()
         assert len(tests) == 1
         test_texts = db_session.scalars(select(TestText).where(TestText.test_id == tests[0].id)).all()
         assert len(test_texts) == 25
+
+
+class TestWritingIssueUnlimitedRetry:
+    def test_does_not_commit_by_default(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_WITH_WRITING_ISSUES)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="i dont think hes coming", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        assert result.committed is False
+        assert result.verdict == Verdict.CORRECT_WITH_WRITING_ISSUES
+        assert db_session.scalars(select(Attempt).where(Attempt.user_id == user.id)).all() == []
+        progress = db_session.get(UserTextProgress, (user.id, next_ex.progress.text_id))
+        assert progress.mastery_score == 0
+        assert progress.status == TextProgressStatus.ACTIVE
+
+    def test_can_be_retried_any_number_of_times_without_committing(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(
+            evaluation_results=[
+                eval_result(Verdict.CORRECT_WITH_WRITING_ISSUES),
+                eval_result(Verdict.CORRECT_WITH_WRITING_ISSUES),
+                eval_result(Verdict.CORRECT_WITH_WRITING_ISSUES),
+            ]
+        )
+
+        for _ in range(3):
+            result = service.submit_answer(
+                db_session, engine, user, text_id=next_ex.progress.text_id,
+                user_answer="i dont think hes coming", input_method=InputMethod.KEYBOARD,
+                submission_id=str(uuid.uuid4()),
+            )
+            assert result.committed is False
+
+        progress = db_session.get(UserTextProgress, (user.id, next_ex.progress.text_id))
+        assert progress.mastery_score == 0
+        assert progress.times_presented == 0
+
+    def test_finalize_commits_the_writing_issue_verdict(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_WITH_WRITING_ISSUES)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="i dont think hes coming", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()), finalize=True,
+        )
+
+        assert result.committed is True
+        assert result.points_awarded == 1
+        assert result.progress.perfect_learning_record is False
+
+    def test_pending_submission_still_records_ai_usage(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_WITH_WRITING_ISSUES)])
+
+        service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="i dont think hes coming", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        from app.shared.models import AIOperation, AIUsage
+
+        usage = db_session.query(AIUsage).filter_by(
+            operation=AIOperation.EVALUATION, user_id=user.id
+        ).all()
+        assert len(usage) == 1
+
+    def test_pending_submission_does_not_advance_exercise_sequence(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_WITH_WRITING_ISSUES)])
+        sequence_before = next_ex.learning_state.exercise_sequence
+
+        service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="i dont think hes coming", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.exercise_sequence == sequence_before
+
+
+class TestUnnaturalOneTimeRetryOffer:
+    def test_does_not_commit_on_first_try(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_UNNATURAL)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        assert result.committed is False
+        assert db_session.scalars(select(Attempt).where(Attempt.user_id == user.id)).all() == []
+
+    def test_commits_when_the_one_retry_has_already_been_used(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_UNNATURAL)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()), unnatural_retry_used=True,
+        )
+
+        assert result.committed is True
+        assert result.points_awarded == 1
+
+    def test_finalize_commits_without_needing_the_retry_flag(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_UNNATURAL)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()), finalize=True,
+        )
+
+        assert result.committed is True
+
+    def test_a_writing_issue_verdict_during_the_retry_still_gets_its_own_unlimited_offer(self, db_session):
+        # unnatural_retry_used=True only forces a commit for an UNNATURAL
+        # verdict; a different verdict on the retry follows its own rule.
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_WITH_WRITING_ISSUES)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="i dont think hes coming", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()), unnatural_retry_used=True,
+        )
+
+        assert result.committed is False
+
+
+class TestNaturalAndIncorrectAlwaysCommitImmediately:
+    def test_natural_commits_without_any_flag(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        assert result.committed is True
+
+    def test_incorrect_commits_without_any_flag(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.INCORRECT)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        assert result.committed is True
 
 
 class TestSkip:
@@ -348,8 +703,8 @@ class TestRepetitionAndAcquisition:
 
         progress = service.increase_repetition_for_text(db_session, user.id, next_ex.progress.text_id)
 
-        assert progress.required_natural_equivalents == 4
-        assert progress.required_score == 8
+        assert progress.required_natural_equivalents == 3
+        assert progress.required_score == 6
 
     def test_manual_acquisition_does_not_count_as_correct_and_backfills_bank(self, db_session):
         user = make_user(db_session)
@@ -387,6 +742,7 @@ class TestReevaluate:
         submit_result = service.submit_answer(
             db_session, engine, user, text_id=next_ex.progress.text_id,
             user_answer="answer", input_method=InputMethod.KEYBOARD, submission_id=str(uuid.uuid4()),
+            finalize=True,
         )
         original_evaluation_id = submit_result.evaluation.id
 
@@ -422,3 +778,82 @@ class TestReevaluate:
 
         score_after_reeval = db_session.get(UserTextProgress, (user.id, next_ex.progress.text_id)).mastery_score
         assert score_after_reeval == score_after_submit == 0
+
+
+class TestExploreAlternative:
+    def test_returns_the_evaluation_verdict_for_the_alternative(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+        engine = FakeEngine(
+            evaluation_results=[eval_result(Verdict.CORRECT_NATURAL, feedback="Great alternative!")]
+        )
+
+        result = service.explore_alternative(db_session, engine, user, text.id, "a totally different sentence")
+
+        assert result.verdict == Verdict.CORRECT_NATURAL
+        assert result.feedback == "Great alternative!"
+
+    def test_never_creates_an_attempt_or_evaluation(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+
+        service.explore_alternative(db_session, engine, user, text.id, "some sentence")
+
+        assert db_session.scalars(select(Attempt)).first() is None
+        assert db_session.scalars(select(Evaluation)).first() is None
+
+    def test_never_creates_or_mutates_progress(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.INCORRECT)])
+
+        service.explore_alternative(db_session, engine, user, text.id, "some sentence")
+
+        assert db_session.get(UserTextProgress, (user.id, text.id)) is None
+
+    def test_does_not_affect_progress_from_a_real_submission(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+
+        service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD, submission_id=str(uuid.uuid4()),
+            finalize=True,
+        )
+        score_after_submit = db_session.get(
+            UserTextProgress, (user.id, next_ex.progress.text_id)
+        ).mastery_score
+
+        engine.evaluation_results = [eval_result(Verdict.INCORRECT)]
+        engine.evaluate_calls = 0
+        service.explore_alternative(db_session, engine, user, next_ex.progress.text_id, "a wrong guess")
+
+        score_after_explore = db_session.get(
+            UserTextProgress, (user.id, next_ex.progress.text_id)
+        ).mastery_score
+        assert score_after_explore == score_after_submit
+
+    def test_can_be_called_repeatedly_with_no_accumulating_side_effects(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+        engine = FakeEngine(
+            evaluation_results=[eval_result(Verdict.CORRECT_UNNATURAL), eval_result(Verdict.CORRECT_NATURAL)]
+        )
+
+        first = service.explore_alternative(db_session, engine, user, text.id, "first try")
+        second = service.explore_alternative(db_session, engine, user, text.id, "second try")
+
+        assert first.verdict == Verdict.CORRECT_UNNATURAL
+        assert second.verdict == Verdict.CORRECT_NATURAL
+        assert db_session.scalars(select(Attempt)).first() is None
+        assert db_session.get(UserTextProgress, (user.id, text.id)) is None
+
+    def test_raises_for_an_unknown_text(self, db_session):
+        user = make_user(db_session)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+
+        with pytest.raises(ValueError):
+            service.explore_alternative(db_session, engine, user, uuid.uuid4(), "some sentence")

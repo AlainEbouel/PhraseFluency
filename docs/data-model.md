@@ -29,7 +29,7 @@ Global/shared content.
 -   text_id
 -   french_text
 -   exercise_type: TRANSLATION \| SITUATIONAL
--   difficulty: B1 \| B2 \| C1
+-   difficulty: A1 \| A2 \| B1 \| B2 \| C1 \| C2
 -   contexts\[\]
 -   grammar_concepts\[\]
 -   skills\[\]
@@ -97,6 +97,8 @@ Possible statuses:
 -   current_text_id
 -   current_draft
 -   current_hint_level
+-   current_level: A1 \| A2 \| B1 \| B2 \| C1 \| C2 \| null (chosen once,
+    at onboarding; null blocks all activation until set)
 
 ## Attempt
 

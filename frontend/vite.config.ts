@@ -6,5 +6,12 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    allowedHosts: ["phrasefluency.aebouel.org"],
+    proxy: {
+      "/api": {
+        target: "http://backend:8000",
+        changeOrigin: true,
+      },
+    },
   },
 });

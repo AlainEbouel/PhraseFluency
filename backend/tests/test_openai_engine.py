@@ -153,7 +153,7 @@ class TestEvaluate:
         assert result.verdict == Verdict.CORRECT_NATURAL
         assert result.feedback == "Nicely done."
         assert result.error_categories == []
-        assert result.prompt_version == "evaluation-v1"
+        assert result.prompt_version == "evaluation-v2"
 
     def test_error_categories_mapped_to_plain_strings(self):
         parsed = _EvaluationSchema(

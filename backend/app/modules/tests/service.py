@@ -20,7 +20,7 @@ from app.modules.tests.engine import (
     start_attempt,
 )
 from app.modules.tests.models import Test, TestAttempt, TestAttemptStatus, TestText
-from app.modules.texts.models import Text, TextVersion
+from app.modules.texts.models import Difficulty, Text, TextVersion
 from app.modules.users.models import User
 from app.shared.ai_usage import record_ai_usage
 from app.shared.mixins import utcnow
@@ -149,6 +149,7 @@ class TestSubmitResult:
     consecutive_successes: int
     mastered: bool
     test_completed: bool
+    difficulty: Difficulty
 
 
 def submit_test_answer(
@@ -162,16 +163,22 @@ def submit_test_answer(
     input_method,
     submission_id: str,
 ) -> TestSubmitResult:
-    existing_attempt = db.scalar(select(Attempt).where(Attempt.submission_id == submission_id))
+    existing_attempt = db.scalar(
+        select(Attempt).where(
+            Attempt.submission_id == submission_id, Attempt.user_id == user.id
+        )
+    )
     if existing_attempt is not None:
         evaluation = db.get(Evaluation, existing_attempt.active_evaluation_id)
         test_text = db.get(TestText, (test.id, text_id))
         test_attempt = _latest_attempt(db, test.id)
+        existing_text_version = db.get(TextVersion, existing_attempt.text_version_id)
         return TestSubmitResult(
             evaluation=evaluation,
             consecutive_successes=test_text.consecutive_successes,
             mastered=test_text.mastered_at is not None,
             test_completed=test_attempt.status == TestAttemptStatus.COMPLETED,
+            difficulty=existing_text_version.difficulty,
         )
 
     test_attempt = _latest_attempt(db, test.id)
@@ -274,4 +281,5 @@ def submit_test_answer(
         consecutive_successes=test_text.consecutive_successes,
         mastered=test_text.mastered_at is not None,
         test_completed=test_attempt.status == TestAttemptStatus.COMPLETED,
+        difficulty=text_version.difficulty,
     )

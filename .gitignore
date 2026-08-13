@@ -2,6 +2,8 @@
 .env.*
 !.env.example
 
+ssl/
+
 __pycache__/
 *.pyc
 .venv/

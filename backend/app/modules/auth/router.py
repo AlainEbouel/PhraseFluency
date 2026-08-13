@@ -13,12 +13,12 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 settings = get_settings()
 
 
-def _set_session_cookie(response: Response, token: str) -> None:
+def _set_session_cookie(response: Response, request: Request, token: str) -> None:
     response.set_cookie(
         key=settings.session_cookie_name,
         value=token,
         httponly=True,
-        secure=settings.is_production,
+        secure=request.url.scheme == "https",
         samesite="lax",
         max_age=settings.session_ttl_days * 24 * 60 * 60,
         path="/",
@@ -26,12 +26,14 @@ def _set_session_cookie(response: Response, token: str) -> None:
 
 
 @router.post("/login", response_model=UserOut)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> User:
+def login(
+    payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
+) -> User:
     user = authenticate_user(db, payload.email, payload.password)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
     token = create_session(db, user)
-    _set_session_cookie(response, token)
+    _set_session_cookie(response, request, token)
     return user
 
 

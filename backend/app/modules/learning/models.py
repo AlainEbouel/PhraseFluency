@@ -6,7 +6,12 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.modules.learning.engine import (
+    DEFAULT_REQUIRED_NATURAL_EQUIVALENTS,
+    DEFAULT_REQUIRED_SCORE,
+)
 from app.modules.learning.enums import TextProgressStatus
+from app.modules.texts.models import Difficulty
 
 
 class UserTextProgress(Base):
@@ -24,8 +29,10 @@ class UserTextProgress(Base):
         default=TextProgressStatus.UNSEEN,
     )
     mastery_score: Mapped[int] = mapped_column(Integer, default=0)
-    required_score: Mapped[int] = mapped_column(Integer, default=6)
-    required_natural_equivalents: Mapped[int] = mapped_column(Integer, default=3)
+    required_score: Mapped[int] = mapped_column(Integer, default=DEFAULT_REQUIRED_SCORE)
+    required_natural_equivalents: Mapped[int] = mapped_column(
+        Integer, default=DEFAULT_REQUIRED_NATURAL_EQUIVALENTS
+    )
     times_presented: Mapped[int] = mapped_column(Integer, default=0)
     natural_count: Mapped[int] = mapped_column(Integer, default=0)
     unnatural_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -52,3 +59,6 @@ class UserLearningState(Base):
     )
     current_draft: Mapped[str | None] = mapped_column(TextColumn, default=None)
     current_hint_level: Mapped[int] = mapped_column(Integer, default=0)
+    current_level: Mapped[Difficulty | None] = mapped_column(
+        Enum(Difficulty, name="difficulty"), default=None
+    )

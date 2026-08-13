@@ -1,3 +1,5 @@
+import json
+
 from app.modules.imports.engine import ImportRow, normalize_french_text, validate_and_dedupe_rows
 from app.modules.imports.parsing import ImportParseError, parse_csv, parse_json
 
@@ -108,3 +110,28 @@ class TestParseJson:
         content = b'[{"french_text": "Bonjour", "concepts": ["present_perfect"]}]'
         rows = parse_json(content)
         assert rows[0].grammar_concepts == ["present_perfect"]
+
+    def test_corpus_envelope_with_texts_key_is_unwrapped(self):
+        content = json.dumps(
+            {
+                "name": "PhraseFluency Prototype Text Bank",
+                "version": 1,
+                "distribution": {"B1": 15, "B2": 70, "C1": 15},
+                "texts": [
+                    {"french_text": "Bonjour", "difficulty": "B1", "id": 1},
+                    {"french_text": "Salut", "difficulty": "B2", "id": 2},
+                ],
+            }
+        ).encode("utf-8")
+        rows = parse_json(content)
+        assert len(rows) == 2
+        assert rows[0].french_text == "Bonjour"
+        assert rows[1].difficulty == "B2"
+
+    def test_envelope_without_texts_key_still_raises(self):
+        content = b'{"name": "no texts key here"}'
+        try:
+            parse_json(content)
+            assert False, "expected ImportParseError"
+        except ImportParseError:
+            pass

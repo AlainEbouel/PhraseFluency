@@ -1,8 +1,24 @@
 import { apiRequest } from "./client";
-import type { Exercise, NoExerciseAvailable, Progress, SubmitResult } from "../types/learning";
+import type {
+  Difficulty,
+  Exercise,
+  ExploreResult,
+  LevelRequired,
+  NoExerciseAvailable,
+  PendingSubmitResult,
+  Progress,
+  SubmitResult,
+} from "../types/learning";
 
-export function fetchNextExercise(): Promise<Exercise | NoExerciseAvailable> {
+export function fetchNextExercise(): Promise<Exercise | LevelRequired | NoExerciseAvailable> {
   return apiRequest("/api/v1/learning/next");
+}
+
+export function chooseLevel(level: Difficulty): Promise<void> {
+  return apiRequest("/api/v1/learning/level", {
+    method: "POST",
+    body: JSON.stringify({ level }),
+  });
 }
 
 export function saveDraft(draft: string): Promise<void> {
@@ -19,14 +35,17 @@ export function requestHint(): Promise<{ hint_level: number; hints_revealed: str
 export function submitAnswer(
   userAnswer: string,
   inputMethod: "KEYBOARD" | "VOICE",
-  submissionId: string
-): Promise<SubmitResult> {
+  submissionId: string,
+  options?: { finalize?: boolean; unnaturalRetryUsed?: boolean }
+): Promise<SubmitResult | PendingSubmitResult> {
   return apiRequest("/api/v1/learning/submit", {
     method: "POST",
     body: JSON.stringify({
       user_answer: userAnswer,
       input_method: inputMethod,
       submission_id: submissionId,
+      finalize: options?.finalize ?? false,
+      unnatural_retry_used: options?.unnaturalRetryUsed ?? false,
     }),
   });
 }
@@ -52,6 +71,13 @@ export function reevaluate(textId: string) {
 
 export function fetchExplanation(textId: string) {
   return apiRequest<{ explanation: string }>(`/api/v1/learning/${textId}/explanation`);
+}
+
+export function exploreAlternative(textId: string, userAnswer: string): Promise<ExploreResult> {
+  return apiRequest(`/api/v1/learning/${textId}/explore`, {
+    method: "POST",
+    body: JSON.stringify({ user_answer: userAnswer }),
+  });
 }
 
 export function transcribeAudio(blob: Blob): Promise<{ text: string }> {

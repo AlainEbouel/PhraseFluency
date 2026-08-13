@@ -6,6 +6,8 @@ import {
   submitTestAnswer,
 } from "../../api/tests";
 import type { TestDetail, TestSubmitResult, TestSummary } from "../../api/tests";
+import { VerdictBadge } from "../../components/VerdictBadge";
+import { DIFFICULTY_LABELS, DIFFICULTY_PILL } from "../../constants/difficulty";
 
 const STATUS_LABELS: Record<string, string> = {
   AVAILABLE: "Disponible",
@@ -39,10 +41,13 @@ export function TestsPage() {
 
   return (
     <div className="tests-page">
-      <h1>Tests</h1>
+      <div className="page-header">
+        <h1>Tests</h1>
+        <p className="page-subtitle">Des lots de 25 textes pour mesurer votre rétention.</p>
+      </div>
       {tests === null && <p>Chargement...</p>}
       {tests?.length === 0 && (
-        <p>
+        <p className="empty-state">
           Aucun test disponible encore. Complétez plus d'exercices d'apprentissage pour débloquer
           votre premier test de 25 textes.
         </p>
@@ -68,6 +73,7 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
   const [detail, setDetail] = useState<TestDetail | null>(null);
   const [currentTextId, setCurrentTextId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
+  const [submittedAnswer, setSubmittedAnswer] = useState("");
   const [feedback, setFeedback] = useState<TestSubmitResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +102,7 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
     setError(null);
     try {
       const result = await submitTestAnswer(testId, currentTextId, answer, crypto.randomUUID());
+      setSubmittedAnswer(answer);
       setFeedback(result);
       setAnswer("");
       reload();
@@ -158,7 +165,32 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
 
               {feedback && (
                 <div className="feedback-panel">
-                  <p>{feedback.feedback}</p>
+                  <div className="feedback-badges">
+                    <VerdictBadge verdict={feedback.verdict} />
+                    <span className={`pill ${DIFFICULTY_PILL[feedback.difficulty] ?? "pill"}`}>
+                      {DIFFICULTY_LABELS[feedback.difficulty] ?? feedback.difficulty}
+                    </span>
+                  </div>
+
+                  <div className="your-answer-block">
+                    <span className="your-answer-label">Votre réponse</span>
+                    <p className="your-answer-text">{submittedAnswer}</p>
+                  </div>
+
+                  <p className="feedback-text">{feedback.feedback}</p>
+
+                  {feedback.corrected_answer && (
+                    <p className="corrected-answer">
+                      Forme correcte : <strong>{feedback.corrected_answer}</strong>
+                      {feedback.writing_issues.length > 0 && (
+                        <span className="writing-issues-detail">
+                          {" "}
+                          ({feedback.writing_issues.join(" · ")})
+                        </span>
+                      )}
+                    </p>
+                  )}
+
                   <p>
                     Succès consécutifs : {feedback.consecutive_successes}/2{" "}
                     {feedback.mastered ? "— Maîtrisé !" : ""}

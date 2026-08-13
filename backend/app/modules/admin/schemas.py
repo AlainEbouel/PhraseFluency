@@ -62,6 +62,7 @@ class UserSummaryOut(BaseModel):
     id: uuid.UUID
     email: str
     role: UserRole
+    is_active: bool
     created_at: datetime
     last_login_at: datetime | None
 

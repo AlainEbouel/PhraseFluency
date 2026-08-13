@@ -13,6 +13,8 @@ export type Verdict =
   | "CORRECT_WITH_WRITING_ISSUES"
   | "INCORRECT";
 
+export type Difficulty = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
 export interface Progress {
   status: TextProgressStatus;
   mastery_score: number;
@@ -41,15 +43,38 @@ export interface NoExerciseAvailable {
   message: string;
 }
 
+export interface LevelRequired {
+  requires_level_selection: true;
+}
+
 export interface SubmitResult {
+  committed: true;
   verdict: Verdict;
   points_awarded: number;
   corrected_answer: string | null;
   feedback: string;
+  writing_issues: string[];
   preferred_translation: string;
   alternatives: string[];
   patterns: string[];
   error_categories: string[];
   progress: Progress;
   new_tests_created: number;
+  difficulty: Difficulty;
+}
+
+export interface PendingSubmitResult {
+  committed: false;
+  verdict: Verdict;
+  feedback: string;
+  writing_issues: string[];
+  difficulty: Difficulty;
+}
+
+export interface ExploreResult {
+  verdict: Verdict;
+  meaning_preserved: boolean;
+  corrected_answer: string | null;
+  feedback: string;
+  writing_issues: string[];
 }

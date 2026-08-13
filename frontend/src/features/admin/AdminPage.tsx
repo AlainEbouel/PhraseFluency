@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import {
   confirmImport,
+  createAdminUser,
   disableText,
+  disableUser,
   enableText,
+  enableUser,
   fetchAdminTexts,
   fetchAdminUsers,
   fetchImportBatches,
@@ -15,6 +18,7 @@ import type {
   ImportBatch,
   ImportPreview,
 } from "../../api/admin";
+import { useAuth } from "../auth/AuthContext";
 
 type Tab = "texts" | "imports" | "users";
 
@@ -23,7 +27,10 @@ export function AdminPage() {
 
   return (
     <div className="admin-page">
-      <h1>Administration</h1>
+      <div className="page-header">
+        <h1>Administration</h1>
+        <p className="page-subtitle">Contenu, imports et utilisateurs.</p>
+      </div>
       <div className="admin-tabs">
         <button className={tab === "texts" ? "active" : ""} onClick={() => setTab("texts")}>
           Textes
@@ -79,32 +86,38 @@ function TextsTab() {
           Rechercher
         </button>
       </div>
-      <table className="stats-table">
-        <thead>
-          <tr>
-            <th>Texte français</th>
-            <th>Difficulté</th>
-            <th>Type</th>
-            <th>Statut</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {texts?.map((text) => (
-            <tr key={text.id}>
-              <td>{text.french_text}</td>
-              <td>{text.difficulty}</td>
-              <td>{text.exercise_type}</td>
-              <td>{text.enabled ? "Actif" : "Désactivé"}</td>
-              <td>
-                <button type="button" onClick={() => toggle(text)}>
-                  {text.enabled ? "Désactiver" : "Activer"}
-                </button>
-              </td>
+      <div className="card">
+        <table className="stats-table">
+          <thead>
+            <tr>
+              <th>Texte français</th>
+              <th>Difficulté</th>
+              <th>Type</th>
+              <th>Statut</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {texts?.map((text) => (
+              <tr key={text.id}>
+                <td>{text.french_text}</td>
+                <td>{text.difficulty}</td>
+                <td>{text.exercise_type}</td>
+                <td>
+                  <span className={text.enabled ? "pill pill-good" : "pill pill-critical"}>
+                    {text.enabled ? "Actif" : "Désactivé"}
+                  </span>
+                </td>
+                <td>
+                  <button type="button" onClick={() => toggle(text)}>
+                    {text.enabled ? "Désactiver" : "Activer"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -179,59 +192,153 @@ function ImportsTab() {
       )}
 
       <h2>Historique des imports</h2>
-      <table className="stats-table">
-        <thead>
-          <tr>
-            <th>Fichier</th>
-            <th>Total</th>
-            <th>Importés</th>
-            <th>Doublons</th>
-            <th>Rejetés</th>
-          </tr>
-        </thead>
-        <tbody>
-          {batches?.map((batch) => (
-            <tr key={batch.id}>
-              <td>{batch.filename}</td>
-              <td>{batch.total_rows}</td>
-              <td>{batch.imported_count}</td>
-              <td>{batch.duplicate_count}</td>
-              <td>{batch.rejected_count}</td>
+      <div className="card">
+        <table className="stats-table">
+          <thead>
+            <tr>
+              <th>Fichier</th>
+              <th>Total</th>
+              <th>Importés</th>
+              <th>Doublons</th>
+              <th>Rejetés</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {batches?.map((batch) => (
+              <tr key={batch.id}>
+                <td>{batch.filename}</td>
+                <td>{batch.total_rows}</td>
+                <td>{batch.imported_count}</td>
+                <td>{batch.duplicate_count}</td>
+                <td>{batch.rejected_count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
 function UsersTab() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"USER" | "ADMIN">("USER");
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function reload() {
+    fetchAdminUsers().then(setUsers).catch(() => setUsers([]));
+  }
 
   useEffect(() => {
-    fetchAdminUsers().then(setUsers).catch(() => setUsers([]));
+    reload();
   }, []);
 
+  async function handleCreate(event: FormEvent) {
+    event.preventDefault();
+    setIsCreating(true);
+    setError(null);
+    try {
+      await createAdminUser(email, password, role);
+      setEmail("");
+      setPassword("");
+      setRole("USER");
+      reload();
+    } catch {
+      setError("Impossible de créer ce compte (email déjà utilisé ?).");
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
+  async function toggle(user: AdminUser) {
+    setError(null);
+    try {
+      if (user.is_active) {
+        await disableUser(user.id);
+      } else {
+        await enableUser(user.id);
+      }
+      reload();
+    } catch {
+      setError("Impossible de modifier le statut de ce compte.");
+    }
+  }
+
   return (
-    <table className="stats-table">
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>Rôle</th>
-          <th>Créé le</th>
-          <th>Dernière connexion</th>
-        </tr>
-      </thead>
-      <tbody>
-        {users?.map((user) => (
-          <tr key={user.id}>
-            <td>{user.email}</td>
-            <td>{user.role}</td>
-            <td>{new Date(user.created_at).toLocaleDateString()}</td>
-            <td>{user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "—"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div>
+      <div className="card create-user-card">
+        <h2>Créer un compte</h2>
+        <form className="create-user-form" onSubmit={handleCreate}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <select value={role} onChange={(e) => setRole(e.target.value as "USER" | "ADMIN")}>
+            <option value="USER">Utilisateur</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+          <button type="submit" className="primary-button" disabled={isCreating}>
+            {isCreating ? "Création..." : "Créer"}
+          </button>
+        </form>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+
+      <div className="card">
+        <table className="stats-table">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Rôle</th>
+              <th>Statut</th>
+              <th>Créé le</th>
+              <th>Dernière connexion</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {users?.map((user) => (
+              <tr key={user.id}>
+                <td>{user.email}</td>
+                <td>
+                  <span className={user.role === "ADMIN" ? "pill pill-brand" : "pill"}>{user.role}</span>
+                </td>
+                <td>
+                  <span className={user.is_active ? "pill pill-good" : "pill pill-critical"}>
+                    {user.is_active ? "Actif" : "Désactivé"}
+                  </span>
+                </td>
+                <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                <td>{user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "—"}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => toggle(user)}
+                    disabled={user.id === currentUser?.id}
+                    title={user.id === currentUser?.id ? "Vous ne pouvez pas désactiver votre propre compte" : undefined}
+                  >
+                    {user.is_active ? "Désactiver" : "Activer"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

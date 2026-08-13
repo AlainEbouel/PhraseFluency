@@ -9,8 +9,8 @@ not depend on React or on a specific LLM provider.
 
 Default:
 
--   `required_natural_equivalents = 3`
--   `required_score = 6`
+-   `required_natural_equivalents = 2`
+-   `required_score = 4`
 -   natural = +2
 -   imperfect correct = +1
 -   incorrect = +0
@@ -64,11 +64,45 @@ When mastery score reaches required score:
 -   otherwise: transition to `WAITING_FOR_TEST_ASSIGNMENT`.
 
 If a reserve text exists, activate the next unseen text so the active
-bank remains at 100 where possible.
+bank remains at 100 where possible. Selection is difficulty-weighted
+around the user's chosen level (see "Level selection and the weighted
+active bank" below).
 
 Manual acquisition: - transition out of active learning; - record
 `manually_acquired = true`; - do not count as correct; - replace with
-next unseen text.
+next unseen text (same difficulty-weighted selection).
+
+## Level selection and the weighted active bank
+
+On first use, a user chooses their current CEFR level (A1-C2). Nothing
+activates into their bank before this choice is made — `GET
+/api/v1/learning/next` signals that a level is required instead of
+serving an exercise or the empty-bank message.
+
+Once chosen, the 100-text active bank is composed around three tiers
+relative to that level:
+
+-   15% at the chosen level itself;
+-   75% at the next level up (the aspirational target);
+-   10% two levels up.
+
+Levels past C2 clamp to C2; if two tiers clamp to the same level their
+shares merge (e.g. a C1 choice yields 15% C1 / 85% C2; a C2 choice
+yields 100% C2).
+
+As texts leave the active bank (mastered, disabled, manually acquired),
+each replacement is chosen to reduce whichever tier is furthest below
+its target share of the current bank size, not on a fixed schedule -
+this keeps the composition self-correcting rather than drifting.
+
+If a tier has no unseen text left, the next most-deficient tier is
+tried instead. If all three weighted tiers are exhausted, selection
+falls back to the oldest unseen text in the whole corpus, regardless of
+difficulty, exactly as it did before this feature existed.
+
+Choosing a level is currently a one-time action (no self-service
+"change my level" flow yet); already-active texts are never
+retroactively reshuffled when a level is chosen or the bank tops up.
 
 ## Test assignment
 

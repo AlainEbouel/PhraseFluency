@@ -10,14 +10,15 @@ from dataclasses import dataclass, replace
 
 from app.modules.evaluations.enums import Verdict
 from app.modules.learning.enums import TextProgressStatus
+from app.modules.texts.models import Difficulty
 
 NATURAL_POINTS = 2
 IMPERFECT_POINTS = 1
 INCORRECT_POINTS = 0
 HINT_CAPPED_POINTS = 1
 
-DEFAULT_REQUIRED_NATURAL_EQUIVALENTS = 3
-DEFAULT_REQUIRED_SCORE = 6
+DEFAULT_REQUIRED_NATURAL_EQUIVALENTS = 2
+DEFAULT_REQUIRED_SCORE = 4
 REPETITION_NATURAL_EQUIVALENT_INCREMENT = 1
 REPETITION_SCORE_INCREMENT = 2
 
@@ -25,6 +26,16 @@ REVIEW_INTERVAL_INCORRECT = 20
 REVIEW_INTERVAL_IMPERFECT = 30
 
 DEFAULT_ACTIVE_BANK_SIZE = 100
+
+CEFR_ORDER = [
+    Difficulty.A1,
+    Difficulty.A2,
+    Difficulty.B1,
+    Difficulty.B2,
+    Difficulty.C1,
+    Difficulty.C2,
+]
+TIER_WEIGHTS = (0.15, 0.75, 0.10)  # current level, next level up, two up
 
 _BASE_POINTS = {
     Verdict.CORRECT_NATURAL: NATURAL_POINTS,
@@ -162,6 +173,39 @@ def manually_acquire(progress: TextProgressState) -> TextProgressState:
         manually_acquired=True,
         next_review_at_exercise=None,
     )
+
+
+def tier_weights(current_level: Difficulty) -> dict[Difficulty, float]:
+    """Target share of the active bank for the user's level and the two above.
+
+    Levels past C2 clamp to C2; when two tiers clamp to the same level
+    their weights merge (e.g. current=C1 -> {C1: 0.15, C2: 0.85};
+    current=C2 -> {C2: 1.0}).
+    """
+    start = CEFR_ORDER.index(current_level)
+    weights: dict[Difficulty, float] = {}
+    for offset, weight in zip(range(3), TIER_WEIGHTS):
+        level = CEFR_ORDER[min(start + offset, len(CEFR_ORDER) - 1)]
+        weights[level] = weights.get(level, 0.0) + weight
+    return weights
+
+
+def prioritized_tiers(
+    weights: dict[Difficulty, float], active_counts: dict[Difficulty, int]
+) -> list[Difficulty]:
+    """Weighted tiers ordered most-under-served-first.
+
+    Deficit is each tier's target share of the (hypothetically +1) active
+    bank minus how many of that difficulty are active now. Ties keep a
+    stable order (target level before the tiers around it would only tie
+    at bank size 0, where weight order already prioritizes correctly).
+    """
+    total_active = sum(active_counts.get(level, 0) for level in weights)
+
+    def deficit(level: Difficulty) -> float:
+        return weights[level] * (total_active + 1) - active_counts.get(level, 0)
+
+    return sorted(weights, key=deficit, reverse=True)
 
 
 def should_activate_next(

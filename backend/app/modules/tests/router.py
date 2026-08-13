@@ -130,7 +130,9 @@ def submit_test(
         verdict=result.evaluation.verdict,
         feedback=result.evaluation.feedback,
         corrected_answer=result.evaluation.corrected_answer,
+        writing_issues=list(result.evaluation.writing_issues),
         consecutive_successes=result.consecutive_successes,
         mastered=result.mastered,
         test_completed=result.test_completed,
+        difficulty=result.difficulty,
     )

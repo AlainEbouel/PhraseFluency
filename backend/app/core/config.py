@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     database_url: str
     session_secret: str
     frontend_url: str = "http://localhost:5173"
+    additional_cors_origins: str = ""
     api_base_url: str = "http://localhost:8000"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
@@ -24,8 +25,9 @@ class Settings(BaseSettings):
     admin_bootstrap_password: str | None = None
 
     @property
-    def is_production(self) -> bool:
-        return self.environment == "production"
+    def cors_origins(self) -> list[str]:
+        extra = [o.strip() for o in self.additional_cors_origins.split(",") if o.strip()]
+        return [self.frontend_url, *extra]
 
 
 @lru_cache

@@ -243,6 +243,32 @@ class TestSubmitTestAnswer:
         assert first.evaluation.id == second.evaluation.id
         assert engine.evaluate_calls == 1
 
+    def test_duplicate_submission_id_does_not_leak_across_users(self, db_session):
+        user_a = make_user(db_session)
+        test_a, texts_a = make_test_with_texts(db_session, user_a, count=25)
+        service.start_or_resume_attempt(db_session, test_a)
+        user_b = make_user(db_session)
+        test_b, texts_b = make_test_with_texts(db_session, user_b, count=25)
+        service.start_or_resume_attempt(db_session, test_b)
+        engine = FakeEngine(
+            evaluation_results=[eval_result(Verdict.CORRECT_NATURAL), eval_result(Verdict.INCORRECT)]
+        )
+        submission_id = str(uuid.uuid4())
+
+        result_a = service.submit_test_answer(
+            db_session, engine, user_a, test=test_a, text_id=texts_a[0].id,
+            user_answer="a", input_method=InputMethod.KEYBOARD, submission_id=submission_id,
+        )
+        result_b = service.submit_test_answer(
+            db_session, engine, user_b, test=test_b, text_id=texts_b[0].id,
+            user_answer="b", input_method=InputMethod.KEYBOARD, submission_id=submission_id,
+        )
+
+        assert result_a.evaluation.id != result_b.evaluation.id
+        assert engine.evaluate_calls == 2
+        assert result_a.evaluation.verdict == Verdict.CORRECT_NATURAL
+        assert result_b.evaluation.verdict == Verdict.INCORRECT
+
     def test_submitting_without_in_progress_attempt_raises(self, db_session):
         user = make_user(db_session)
         test, texts = make_test_with_texts(db_session, user, count=25)

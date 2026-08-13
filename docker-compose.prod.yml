@@ -23,10 +23,10 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-30}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-https://phrasefluency.aebouel.org}
       ADDITIONAL_CORS_ORIGINS: ${ADDITIONAL_CORS_ORIGINS:-}
-      API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
-      ENVIRONMENT: ${ENVIRONMENT:-development}
+      API_BASE_URL: ${API_BASE_URL:-https://phrasefluency.aebouel.org}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
       TTS_VOICE: ${TTS_VOICE:-alloy}
@@ -41,15 +41,35 @@ services:
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*"
 
-  frontend:
+  frontend-build:
     build:
       context: ./frontend
-      target: dev
-    depends_on:
-      - backend
+      target: build
+    volumes:
+      - frontend_dist:/output
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-phrasefluency.aebouel.org}
     ports:
-      - "5173:5173"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./ssl/phrasefluency:/certs:ro
+      - frontend_dist:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_started
+      frontend-build:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:
   audio_data:
+  caddy_data:
+  caddy_config:
+  frontend_dist:

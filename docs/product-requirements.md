@@ -59,8 +59,14 @@ V1 begins primarily with `TRANSLATION`, while the model must support
 -   Texts are presented fairly through a normal rotation queue.
 -   Learning concepts/topics are mixed rather than taught in sequential
     grammar units.
--   When an active text is acquired, it is replaced by the next unseen
-    text while reserve content exists.
+-   On first use, a user chooses their current CEFR level (A1-C2);
+    nothing activates into their bank before this choice is made.
+-   The active bank is composed with a fixed ratio around that choice:
+    15% at the chosen level, 75% at the next level up, 10% two levels
+    up (clamped/merged at the C2 ceiling); see docs/learning-engine.md.
+-   When an active text is acquired, it is replaced keeping that same
+    ratio, falling back to any remaining unseen content once the
+    weighted tiers are exhausted.
 -   Imported texts begin as `UNSEEN`.
 
 ## 5. Response workflow
@@ -111,8 +117,8 @@ The correctly written form must be shown.
 
 Default learning requirement:
 
--   3 natural-answer equivalents;
--   represented internally as 6 mastery points.
+-   2 natural-answer equivalents;
+-   represented internally as 4 mastery points.
 
 A natural answer contributes 2 points; a correct but
 unnatural/writing-issue/help-assisted answer contributes 1 point.
@@ -122,11 +128,11 @@ The user may increase the required mastery for a specific text using
 
 Example:
 
--   default: 3 natural equivalents / 6 points;
--   +1: 4 equivalents / 8 points;
--   +2: 5 equivalents / 10 points.
+-   default: 2 natural equivalents / 4 points;
+-   +1: 3 equivalents / 6 points;
+-   +2: 4 equivalents / 8 points.
 
-The UI must visibly show progress such as `1/3`, with a presentation
+The UI must visibly show progress such as `1/2`, with a presentation
 capable of representing half-progress when needed.
 
 The user can mark any text as acquired immediately. Manual acquisition

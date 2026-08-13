@@ -1,10 +1,28 @@
 import { useEffect, useState } from "react";
 import { fetchDetailedStatistics } from "../../api/statistics";
 import type { DetailedStatistics } from "../../api/statistics";
+import { Meter } from "../../components/Meter";
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
+
+const STATUS_PILL: Record<string, string> = {
+  MASTERED: "pill-good",
+  MANUALLY_ACQUIRED: "pill-good",
+  ACTIVE: "pill-brand",
+  TEST_ASSIGNED: "pill-brand",
+  WAITING_FOR_TEST_ASSIGNMENT: "pill-warning",
+  DISABLED: "pill-critical",
+  UNSEEN: "pill",
+};
+
+const VERDICT_PILL: Record<string, string> = {
+  CORRECT_NATURAL: "pill-good",
+  CORRECT_UNNATURAL: "pill-warning",
+  CORRECT_WITH_WRITING_ISSUES: "pill-serious",
+  INCORRECT: "pill-critical",
+};
 
 export function StatisticsPage() {
   const [stats, setStats] = useState<DetailedStatistics | null>(null);
@@ -21,9 +39,12 @@ export function StatisticsPage() {
 
   return (
     <div className="statistics-page">
-      <h1>Statistiques détaillées</h1>
+      <div className="page-header">
+        <h1>Statistiques détaillées</h1>
+        <p className="page-subtitle">Votre historique d'apprentissage, en détail.</p>
+      </div>
 
-      <section>
+      <div className="card">
         <h2>Tendances</h2>
         <table className="stats-table">
           <thead>
@@ -55,105 +76,149 @@ export function StatisticsPage() {
             </tr>
           </tbody>
         </table>
-      </section>
+      </div>
 
-      <section>
-        <h2>Répartition par statut</h2>
-        <ul>
-          {stats.status_counts.map((row) => (
-            <li key={row.status}>
-              {row.status}: {row.count}
+      <div className="card-grid">
+        <div className="card">
+          <h2>Répartition par statut</h2>
+          <ul className="kv-list">
+            {stats.status_counts.map((row) => (
+              <li className="kv-row" key={row.status}>
+                <span className={`pill ${STATUS_PILL[row.status] ?? "pill"}`}>{row.status}</span>
+                <span className="kv-row-value">{row.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="card">
+          <h2>Répartition des verdicts</h2>
+          <ul className="kv-list">
+            {stats.verdict_counts.map((row) => (
+              <li className="kv-row" key={row.verdict}>
+                <span className={`pill ${VERDICT_PILL[row.verdict] ?? "pill"}`}>{row.verdict}</span>
+                <span className="kv-row-value">{row.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="card">
+          <h2>Performance par difficulté</h2>
+          {stats.performance_by_difficulty.length === 0 && (
+            <p className="empty-state">Pas encore de données.</p>
+          )}
+          <ul className="kv-list">
+            {stats.performance_by_difficulty.map((row) => (
+              <li className="kv-row" key={row.difficulty}>
+                <span className="kv-row-label">{row.difficulty}</span>
+                <Meter value={row.natural_rate * 100} max={100} tone="good" />
+                <span className="kv-row-value">{pct(row.natural_rate)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="card">
+          <h2>Performance par contexte</h2>
+          {stats.performance_by_context.length === 0 && (
+            <p className="empty-state">Pas encore de données.</p>
+          )}
+          <ul className="kv-list">
+            {stats.performance_by_context.map((row) => (
+              <li className="kv-row" key={row.context}>
+                <span className="kv-row-label">{row.context}</span>
+                <Meter value={row.natural_rate * 100} max={100} tone="good" />
+                <span className="kv-row-value">{pct(row.natural_rate)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="card">
+          <h2>Voix vs clavier</h2>
+          <ul className="kv-list">
+            {stats.input_method_counts.map((row) => (
+              <li className="kv-row" key={row.input_method}>
+                <span className="kv-row-label">{row.input_method}</span>
+                <span className="kv-row-value">{row.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="card">
+          <h2>Performance aux tests</h2>
+          <ul className="kv-list">
+            <li className="kv-row">
+              <span className="kv-row-label">Tests complétés</span>
+              <span className="kv-row-value">{stats.test_performance.tests_completed}</span>
             </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2>Répartition des verdicts</h2>
-        <ul>
-          {stats.verdict_counts.map((row) => (
-            <li key={row.verdict}>
-              {row.verdict}: {row.count}
+            <li className="kv-row">
+              <span className="kv-row-label">Réponses correctes</span>
+              <span className="pill pill-good">{stats.test_performance.total_correct}</span>
             </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2>Textes les plus difficiles</h2>
-        {stats.hardest_texts.length === 0 && <p>Aucun pour l'instant.</p>}
-        <ul>
-          {stats.hardest_texts.map((t) => (
-            <li key={t.text_id}>
-              {t.french_text} — {t.incorrect_count} incorrecte(s) sur {t.times_presented}
+            <li className="kv-row">
+              <span className="kv-row-label">Réponses incorrectes</span>
+              <span className="pill pill-critical">{stats.test_performance.total_incorrect}</span>
             </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2>Performance par difficulté</h2>
-        <ul>
-          {stats.performance_by_difficulty.map((row) => (
-            <li key={row.difficulty}>
-              {row.difficulty}: {pct(row.natural_rate)} naturel sur {row.attempts_count} tentative(s)
+            <li className="kv-row">
+              <span className="kv-row-label">Reprises (retakes)</span>
+              <span className="kv-row-value">{stats.test_performance.retakes_count}</span>
             </li>
-          ))}
-        </ul>
-      </section>
+          </ul>
+        </div>
 
-      <section>
-        <h2>Performance par contexte</h2>
-        <ul>
-          {stats.performance_by_context.map((row) => (
-            <li key={row.context}>
-              {row.context}: {pct(row.natural_rate)} naturel sur {row.attempts_count} tentative(s)
+        <div className="card">
+          <h2>Divers</h2>
+          <ul className="kv-list">
+            <li className="kv-row">
+              <span className="kv-row-label">Tentatives moyennes avant maîtrise</span>
+              <span className="kv-row-value">
+                {stats.avg_attempts_before_mastery !== null
+                  ? stats.avg_attempts_before_mastery.toFixed(1)
+                  : "—"}
+              </span>
             </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2>Divers</h2>
-        <ul>
-          <li>
-            Attempts moyens avant maîtrise :{" "}
-            {stats.avg_attempts_before_mastery !== null
-              ? stats.avg_attempts_before_mastery.toFixed(1)
-              : "—"}
-          </li>
-          <li>Usage des indices : {pct(stats.hint_usage_rate)}</li>
-          <li>Fautes d'écriture : {stats.writing_issue_count}</li>
-          <li>Formulations rencontrées : {stats.patterns_encountered_count}</li>
-          <li>
-            Réévaluations : {stats.reevaluation.total_reevaluated} (dont{" "}
-            {stats.reevaluation.verdict_changed_count} avec changement de verdict)
-          </li>
-        </ul>
-      </section>
-
-      <section>
-        <h2>Voix vs clavier</h2>
-        <ul>
-          {stats.input_method_counts.map((row) => (
-            <li key={row.input_method}>
-              {row.input_method}: {row.count}
+            <li className="kv-row">
+              <span className="kv-row-label">Usage des indices</span>
+              <span className="kv-row-value">{pct(stats.hint_usage_rate)}</span>
             </li>
-          ))}
-        </ul>
-      </section>
+            <li className="kv-row">
+              <span className="kv-row-label">Fautes d'écriture</span>
+              <span className="kv-row-value">{stats.writing_issue_count}</span>
+            </li>
+            <li className="kv-row">
+              <span className="kv-row-label">Formulations rencontrées</span>
+              <span className="pill pill-brand">{stats.patterns_encountered_count}</span>
+            </li>
+            <li className="kv-row">
+              <span className="kv-row-label">Réévaluations</span>
+              <span className="kv-row-value">
+                {stats.reevaluation.total_reevaluated} ({stats.reevaluation.verdict_changed_count}{" "}
+                changé(s))
+              </span>
+            </li>
+          </ul>
+        </div>
 
-      <section>
-        <h2>Performance aux tests</h2>
-        <ul>
-          <li>Tests complétés : {stats.test_performance.tests_completed}</li>
-          <li>Réponses correctes : {stats.test_performance.total_correct}</li>
-          <li>Réponses incorrectes : {stats.test_performance.total_incorrect}</li>
-          <li>Reprises (retakes) : {stats.test_performance.retakes_count}</li>
-        </ul>
-      </section>
+        <div className="card">
+          <h2>Textes les plus difficiles</h2>
+          {stats.hardest_texts.length === 0 && <p className="empty-state">Aucun pour l'instant.</p>}
+          <ul className="kv-list">
+            {stats.hardest_texts.map((t) => (
+              <li className="kv-row" key={t.text_id}>
+                <span className="kv-row-label">{t.french_text}</span>
+                <span className="pill pill-critical">
+                  {t.incorrect_count}/{t.times_presented}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
-      <section>
+      <div className="card">
         <h2>Usage de l'IA</h2>
         <table className="stats-table">
           <thead>
@@ -173,7 +238,7 @@ export function StatisticsPage() {
             ))}
           </tbody>
         </table>
-      </section>
+      </div>
     </div>
   );
 }

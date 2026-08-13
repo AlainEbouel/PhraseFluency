@@ -22,6 +22,8 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
         return None
     if not verify_password(password, user.password_hash):
         return None
+    if not user.is_active:
+        return None
     return user
 
 
@@ -48,7 +50,10 @@ def get_user_by_session_token(db: Session, token: str) -> User | None:
         return None
     if session.expires_at < utcnow():
         return None
-    return db.get(User, session.user_id)
+    user = db.get(User, session.user_id)
+    if user is None or not user.is_active:
+        return None
+    return user
 
 
 def revoke_session(db: Session, token: str) -> None:

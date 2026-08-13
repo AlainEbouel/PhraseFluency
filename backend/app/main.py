@@ -16,7 +16,6 @@ from app.modules.imports.router import router as imports_router
 from app.modules.learning.router import router as learning_router
 from app.modules.statistics.router import router as statistics_router
 from app.modules.tests.router import router as tests_router
-from app.modules.users.router import router as users_router
 from app.modules.users.service import bootstrap_admin
 
 logging.basicConfig(level=logging.INFO)
@@ -42,14 +41,13 @@ app = FastAPI(title="PhraseFluency API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(auth_router)
-app.include_router(users_router)
 app.include_router(imports_router)
 app.include_router(learning_router)
 app.include_router(tests_router)

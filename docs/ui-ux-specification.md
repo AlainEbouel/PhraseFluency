@@ -35,7 +35,10 @@ Use a coherent design system. Avoid excessive gamification.
 Screens:
 
 -   Sign in
--   Create account
+
+Registration is closed in V1: there is no self-service "Create account"
+screen. Accounts are created by an ADMIN from Admin > Utilisateurs
+(email, password, role).
 
 V1: - email/password only.
 

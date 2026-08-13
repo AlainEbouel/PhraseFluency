@@ -16,11 +16,16 @@ from app.modules.evaluations.service import (
 from app.modules.learning import service
 from app.modules.learning.schemas import (
     AcquireOut,
+    ChooseLevelIn,
     DraftIn,
     ExerciseOut,
     ExplanationOut,
+    ExploreIn,
+    ExploreOut,
     HintOut,
+    LevelRequiredOut,
     NoExerciseAvailableOut,
+    PendingSubmitOut,
     ProgressOut,
     ReevaluateOut,
     RepetitionOut,
@@ -37,11 +42,25 @@ def _progress_out(row) -> ProgressOut:
     return ProgressOut.model_validate(row)
 
 
-@router.get("/next", response_model=ExerciseOut | NoExerciseAvailableOut)
+@router.post("/level", status_code=status.HTTP_204_NO_CONTENT)
+def choose_level(
+    payload: ChooseLevelIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    service.choose_level(db, user.id, payload.level)
+
+
+@router.get("/next", response_model=ExerciseOut | LevelRequiredOut | NoExerciseAvailableOut)
 def next_exercise(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    learning_state = service.get_or_create_learning_state(db, user.id)
+    db.commit()
+    if learning_state.current_level is None:
+        return LevelRequiredOut()
+
     next_ex = service.get_next_exercise(db, user)
     if next_ex is None:
         return NoExerciseAvailableOut(
@@ -105,7 +124,7 @@ def skip(
     service.skip_current(db, user.id, learning_state)
 
 
-@router.post("/submit", response_model=SubmitOut)
+@router.post("/submit", response_model=SubmitOut | PendingSubmitOut)
 def submit(
     payload: SubmitIn,
     db: Session = Depends(get_db),
@@ -125,6 +144,8 @@ def submit(
             user_answer=payload.user_answer,
             input_method=payload.input_method,
             submission_id=payload.submission_id,
+            finalize=payload.finalize,
+            unnatural_retry_used=payload.unnatural_retry_used,
         )
     except EvaluationEngineError as exc:
         raise HTTPException(
@@ -134,17 +155,27 @@ def submit(
     except ValueError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
 
+    if not result.committed:
+        return PendingSubmitOut(
+            verdict=result.verdict,
+            feedback=result.feedback,
+            writing_issues=result.writing_issues,
+            difficulty=result.difficulty,
+        )
+
     return SubmitOut(
         verdict=result.evaluation.verdict,
         points_awarded=result.points_awarded,
         corrected_answer=result.evaluation.corrected_answer,
         feedback=result.evaluation.feedback,
+        writing_issues=list(result.evaluation.writing_issues),
         preferred_translation=result.reference.preferred_translation,
         alternatives=list(result.reference.alternatives),
         patterns=list(result.reference.patterns),
         error_categories=list(result.evaluation.error_categories),
         progress=_progress_out(result.progress),
         new_tests_created=result.new_tests_created,
+        difficulty=result.difficulty,
     )
 
 
@@ -229,3 +260,36 @@ def explanation(
         ) from exc
 
     return ExplanationOut(explanation=text_explanation)
+
+
+@router.post("/{text_id}/explore", response_model=ExploreOut)
+def explore(
+    text_id: uuid.UUID,
+    payload: ExploreIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Check an arbitrary alternative answer, purely out of curiosity.
+
+    Never touches Attempt/Evaluation history or UserTextProgress — the
+    score, schedule, and mastery record are completely unaffected,
+    however many times this is called (explicit product decision).
+    """
+    engine = get_evaluation_engine()
+    try:
+        result = service.explore_alternative(db, engine, user, text_id, payload.user_answer)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    except EvaluationEngineError as exc:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            f"This check is temporarily unavailable, please retry: {exc}",
+        ) from exc
+
+    return ExploreOut(
+        verdict=result.verdict,
+        meaning_preserved=result.meaning_preserved,
+        corrected_answer=result.corrected_answer,
+        feedback=result.feedback,
+        writing_issues=list(result.writing_issues),
+    )

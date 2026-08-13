@@ -42,6 +42,7 @@ export interface AdminUser {
   id: string;
   email: string;
   role: "USER" | "ADMIN";
+  is_active: boolean;
   created_at: string;
   last_login_at: string | null;
 }
@@ -69,6 +70,25 @@ export function fetchImportBatches(): Promise<ImportBatch[]> {
 
 export function fetchAdminUsers(): Promise<AdminUser[]> {
   return apiRequest("/api/v1/admin/users");
+}
+
+export function createAdminUser(
+  email: string,
+  password: string,
+  role: "USER" | "ADMIN"
+): Promise<AdminUser> {
+  return apiRequest("/api/v1/admin/users", {
+    method: "POST",
+    body: JSON.stringify({ email, password, role }),
+  });
+}
+
+export function disableUser(userId: string): Promise<AdminUser> {
+  return apiRequest(`/api/v1/admin/users/${userId}/disable`, { method: "PATCH" });
+}
+
+export function enableUser(userId: string): Promise<AdminUser> {
+  return apiRequest(`/api/v1/admin/users/${userId}/enable`, { method: "PATCH" });
 }
 
 export interface ImportRowPreview {

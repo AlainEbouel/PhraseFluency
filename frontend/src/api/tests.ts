@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import type { Difficulty } from "../types/learning";
 
 export interface TestAttempt {
   id: string;
@@ -39,9 +40,11 @@ export interface TestSubmitResult {
   verdict: string;
   feedback: string;
   corrected_answer: string | null;
+  writing_issues: string[];
   consecutive_successes: number;
   mastered: boolean;
   test_completed: boolean;
+  difficulty: Difficulty;
 }
 
 export function fetchTests(): Promise<TestSummary[]> {

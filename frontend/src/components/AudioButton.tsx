@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Volume2 } from "lucide-react";
 
 export function AudioButton({ src, label }: { src: string; label: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -19,7 +20,7 @@ export function AudioButton({ src, label }: { src: string; label: string }) {
         aria-label={`Écouter : ${label}`}
         disabled={isPlaying}
       >
-        {isPlaying ? "▶ ..." : "🔊"}
+        <Volume2 />
       </button>
       <audio
         ref={audioRef}

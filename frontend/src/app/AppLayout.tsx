@@ -1,3 +1,13 @@
+import {
+  BarChart3,
+  ClipboardCheck,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  MessageCircle,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 
@@ -7,28 +17,35 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <nav className="app-nav">
-        <div className="app-nav-brand">PhraseFluency</div>
+        <div className="app-nav-brand">
+          <span className="app-nav-logo">
+            <MessageCircle />
+          </span>
+          PhraseFluency
+        </div>
         <NavLink to="/" end className="app-nav-link">
-          Tableau de bord
+          <LayoutDashboard /> Tableau de bord
         </NavLink>
         <NavLink to="/learn" className="app-nav-link">
-          Apprendre
+          <GraduationCap /> Apprendre
         </NavLink>
         <NavLink to="/tests" className="app-nav-link">
-          Tests
+          <ClipboardCheck /> Tests
         </NavLink>
         <NavLink to="/statistics" className="app-nav-link">
-          Statistiques
+          <BarChart3 /> Statistiques
         </NavLink>
         {user?.role === "ADMIN" && (
           <NavLink to="/admin" className="app-nav-link">
-            Admin
+            <ShieldCheck /> Admin
           </NavLink>
         )}
         <div className="app-nav-spacer" />
-        <span className="app-nav-user">{user?.email}</span>
+        <span className="app-nav-user">
+          <User size={14} /> {user?.email}
+        </span>
         <button type="button" className="app-nav-logout" onClick={() => void logout()}>
-          Se déconnecter
+          <LogOut /> Se déconnecter
         </button>
       </nav>
       <main className="app-content">

@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Enum, String
+from sqlalchemy import Boolean, Enum, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,3 +24,4 @@ class User(Base, UUIDPrimaryKeyMixin, CreatedAtMixin):
     )
     last_login_at: Mapped[datetime | None] = mapped_column(default=None)
     preferences: Mapped[dict] = mapped_column(JSONB, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")

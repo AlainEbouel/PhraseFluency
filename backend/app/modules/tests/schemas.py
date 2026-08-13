@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.modules.evaluations.enums import InputMethod, Verdict
 from app.modules.tests.models import TestAttemptStatus
+from app.modules.texts.models import Difficulty
 
 
 class TestAttemptOut(BaseModel):
@@ -60,6 +61,8 @@ class TestSubmitOut(BaseModel):
     verdict: Verdict
     feedback: str
     corrected_answer: str | None
+    writing_issues: list[str]
     consecutive_successes: int
     mastered: bool
     test_completed: bool
+    difficulty: Difficulty
