@@ -43,11 +43,17 @@ Each user has:
 
 -   normal active rotation;
 -   due review queue;
--   current exercise sequence.
+-   current exercise sequence;
+-   exercise sequence at which a review was last served.
 
 Selection priority:
 
-1.  oldest due review;
+1.  oldest due review, but only if at least `min_review_gap` (10)
+    exercises have passed since the last review was served — reviews
+    are injected one at a time rather than all at once when several
+    fall due together; a deferred review stays due and is reconsidered
+    on the next call. This gap is skipped only when a due review is
+    the sole content left to serve (nothing normal to fall back to).
 2.  next normal rotation item.
 
 Every successfully evaluated/submitted exercise increments the global
@@ -147,6 +153,8 @@ At minimum test:
 -   +30 scheduling;
 -   due-review priority;
 -   multiple due reviews oldest-first;
+-   due reviews deferred until the minimum gap since the last one served;
+-   the gap is skipped when a due review is the only content left;
 -   reviews increment exercise sequence;
 -   skip behavior;
 -   +1 repetition threshold;

@@ -99,6 +99,9 @@ Possible statuses:
 -   current_hint_level
 -   current_level: A1 \| A2 \| B1 \| B2 \| C1 \| C2 \| null (chosen once,
     at onboarding; null blocks all activation until set)
+-   last_review_at_exercise: exercise sequence value at which a due
+    review was last served (null if none yet); gates how soon the next
+    one can be injected
 
 ## Attempt
 

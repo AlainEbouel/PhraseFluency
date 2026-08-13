@@ -244,7 +244,9 @@ def get_next_exercise(db: Session, user: User) -> NextExercise | None:
         )
         for row in active_rows
     ]
-    chosen = select_next(candidates, learning_state.exercise_sequence)
+    chosen = select_next(
+        candidates, learning_state.exercise_sequence, learning_state.last_review_at_exercise
+    )
     if chosen is None:
         return None
 
@@ -255,6 +257,8 @@ def get_next_exercise(db: Session, user: User) -> NextExercise | None:
         learning_state.current_text_id = progress_row.text_id
         learning_state.current_draft = None
         learning_state.current_hint_level = 0
+        if progress_row.next_review_at_exercise is not None:
+            learning_state.last_review_at_exercise = learning_state.exercise_sequence
         db.add(learning_state)
         db.commit()
 

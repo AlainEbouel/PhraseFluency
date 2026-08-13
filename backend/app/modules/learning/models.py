@@ -62,3 +62,4 @@ class UserLearningState(Base):
     current_level: Mapped[Difficulty | None] = mapped_column(
         Enum(Difficulty, name="difficulty"), default=None
     )
+    last_review_at_exercise: Mapped[int | None] = mapped_column(Integer, default=None)

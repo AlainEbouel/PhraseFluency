@@ -112,6 +112,56 @@ class TestDueReviewPriority:
         assert select_next([], current_exercise_sequence=10) is None
 
 
+class TestReviewSpacing:
+    def test_due_review_deferred_when_gap_not_yet_satisfied(self):
+        candidates = [
+            QueueCandidate(text_id="normal", next_review_at_exercise=None, rotation_position=0),
+            QueueCandidate(text_id="due", next_review_at_exercise=5, rotation_position=10),
+        ]
+        # Last review was 3 exercises ago; the 10-exercise gap isn't met yet.
+        chosen = select_next(candidates, current_exercise_sequence=10, last_review_at_exercise=7)
+        assert chosen.text_id == "normal"
+
+    def test_due_review_served_once_gap_is_satisfied(self):
+        candidates = [
+            QueueCandidate(text_id="normal", next_review_at_exercise=None, rotation_position=0),
+            QueueCandidate(text_id="due", next_review_at_exercise=5, rotation_position=10),
+        ]
+        chosen = select_next(candidates, current_exercise_sequence=10, last_review_at_exercise=0)
+        assert chosen.text_id == "due"
+
+    def test_gap_boundary_is_inclusive(self):
+        candidates = [
+            QueueCandidate(text_id="normal", next_review_at_exercise=None, rotation_position=0),
+            QueueCandidate(text_id="due", next_review_at_exercise=5, rotation_position=10),
+        ]
+        # Exactly MIN_EXERCISES_BETWEEN_REVIEWS (10) since the last review.
+        chosen = select_next(candidates, current_exercise_sequence=10, last_review_at_exercise=0)
+        assert chosen.text_id == "due"
+
+    def test_gate_is_skipped_when_a_due_review_is_the_only_content(self):
+        candidates = [QueueCandidate(text_id="due", next_review_at_exercise=5, rotation_position=10)]
+        chosen = select_next(candidates, current_exercise_sequence=10, last_review_at_exercise=9)
+        assert chosen.text_id == "due"
+
+    def test_multiple_due_reviews_stay_deferred_together(self):
+        candidates = [
+            QueueCandidate(text_id="normal", next_review_at_exercise=None, rotation_position=0),
+            QueueCandidate(text_id="due_a", next_review_at_exercise=1, rotation_position=1),
+            QueueCandidate(text_id="due_b", next_review_at_exercise=2, rotation_position=2),
+        ]
+        chosen = select_next(candidates, current_exercise_sequence=10, last_review_at_exercise=8)
+        assert chosen.text_id == "normal"
+
+    def test_no_prior_review_does_not_block(self):
+        candidates = [
+            QueueCandidate(text_id="normal", next_review_at_exercise=None, rotation_position=0),
+            QueueCandidate(text_id="due", next_review_at_exercise=5, rotation_position=10),
+        ]
+        chosen = select_next(candidates, current_exercise_sequence=10, last_review_at_exercise=None)
+        assert chosen.text_id == "due"
+
+
 class TestSkipBehavior:
     def test_skip_does_not_touch_score_or_counters(self):
         progress = active_progress(mastery_score=3, natural_count=1)

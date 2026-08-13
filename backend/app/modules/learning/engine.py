@@ -24,6 +24,7 @@ REPETITION_SCORE_INCREMENT = 2
 
 REVIEW_INTERVAL_INCORRECT = 20
 REVIEW_INTERVAL_IMPERFECT = 30
+MIN_EXERCISES_BETWEEN_REVIEWS = 10
 
 DEFAULT_ACTIVE_BANK_SIZE = 100
 
@@ -224,19 +225,35 @@ class QueueCandidate:
 
 
 def select_next(
-    candidates: list[QueueCandidate], current_exercise_sequence: int
+    candidates: list[QueueCandidate],
+    current_exercise_sequence: int,
+    last_review_at_exercise: int | None = None,
+    min_review_gap: int = MIN_EXERCISES_BETWEEN_REVIEWS,
 ) -> QueueCandidate | None:
-    """Oldest due review first, else the fairest normal-rotation item."""
+    """Oldest due review first, else the fairest normal-rotation item.
+
+    Due reviews are injected one at a time: once a review has been
+    served, another one only becomes eligible after min_review_gap
+    further exercises, even if several texts are simultaneously due
+    (they stay due and get picked up on a later call). The gap is
+    skipped only when a due review is the sole content left to serve.
+    """
     due = [
         c
         for c in candidates
         if c.next_review_at_exercise is not None
         and c.next_review_at_exercise <= current_exercise_sequence
     ]
-    if due:
+    normal = [c for c in candidates if c.next_review_at_exercise is None]
+
+    gap_satisfied = (
+        last_review_at_exercise is None
+        or current_exercise_sequence - last_review_at_exercise >= min_review_gap
+    )
+
+    if due and (gap_satisfied or not normal):
         return min(due, key=lambda c: (c.next_review_at_exercise, c.rotation_position))
 
-    normal = [c for c in candidates if c.next_review_at_exercise is None]
     if normal:
         return min(normal, key=lambda c: c.rotation_position)
     return None

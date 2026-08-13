@@ -300,6 +300,41 @@ class TestGetNextExercise:
         assert next_ex.progress.text_id == due_row.text_id
         assert next_ex.is_review is True
 
+    def test_second_due_review_is_deferred_until_the_gap_passes(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        make_text(db_session)
+        make_text(db_session)
+        service.activate_up_to_bank_target(db_session, user.id, target=3)
+        db_session.commit()
+
+        rows = db_session.scalars(
+            select(UserTextProgress)
+            .where(UserTextProgress.user_id == user.id)
+            .order_by(UserTextProgress.rotation_position)
+        ).all()
+        normal_row, due_a, due_b = rows[0], rows[1], rows[2]
+        due_a.next_review_at_exercise = 0
+        due_b.next_review_at_exercise = 0
+        db_session.add_all([due_a, due_b])
+        db_session.commit()
+
+        first = service.get_next_exercise(db_session, user)
+        assert first.is_review is True
+        served_review_id = first.progress.text_id
+
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+        service.submit_answer(
+            db_session, engine, user, text_id=served_review_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        second = service.get_next_exercise(db_session, user)
+
+        assert second.is_review is False
+        assert second.progress.text_id == normal_row.text_id
+
 
 class TestSubmitAnswer:
     def test_natural_answer_awards_two_points_and_stays_active_until_mastered(self, db_session):
