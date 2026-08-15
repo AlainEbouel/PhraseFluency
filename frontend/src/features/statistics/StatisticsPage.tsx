@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Lightbulb } from "lucide-react";
+import { GraduationCap, Lightbulb } from "lucide-react";
+import { Link } from "react-router-dom";
 import { fetchDetailedStatistics, fetchWeaknessProfile } from "../../api/statistics";
 import type { DetailedStatistics, WeaknessProfile } from "../../api/statistics";
 import { Meter } from "../../components/Meter";
@@ -54,8 +55,13 @@ export function StatisticsPage() {
   return (
     <div className="statistics-page">
       <div className="page-header">
-        <h1>Statistiques détaillées</h1>
-        <p className="page-subtitle">Votre historique d'apprentissage, en détail.</p>
+        <div>
+          <h1>Statistiques détaillées</h1>
+          <p className="page-subtitle">Votre historique d'apprentissage, en détail.</p>
+        </div>
+        <Link to="/learn" className="primary-button page-header-cta">
+          <GraduationCap /> Continuer l'apprentissage
+        </Link>
       </div>
 
       <div className={`card${weaknessFlash ? " content-flash" : ""}`}>

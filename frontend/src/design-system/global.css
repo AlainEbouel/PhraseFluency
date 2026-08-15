@@ -182,7 +182,16 @@ a {
 /* ---------- Page header & generic cards ---------- */
 
 .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
   margin-bottom: var(--space-6);
+}
+
+.page-header-cta {
+  flex-shrink: 0;
 }
 
 .page-subtitle {
@@ -1097,6 +1106,28 @@ button {
   color: var(--text-primary);
 }
 
+.reevaluate-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--gridline);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-family: inherit;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.reevaluate-button:hover {
+  background: var(--surface-2);
+  border-color: var(--brand-tint-strong);
+}
+
 .corrected-answer {
   padding: var(--space-3);
   background: var(--status-serious-tint);
@@ -1152,6 +1183,9 @@ button {
 
 .feedback-sidebar {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
 }
 
 @media (min-width: 1200px) {
@@ -1544,4 +1578,41 @@ button {
 
 .import-row-duplicate {
   color: var(--text-muted);
+}
+
+/* ---------- Confirm dialog ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 23, 43, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 100;
+}
+
+.modal-panel {
+  background: var(--surface-1);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-panel h3 {
+  margin: 0 0 var(--space-3) 0;
+}
+
+.modal-message {
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-5) 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
 }

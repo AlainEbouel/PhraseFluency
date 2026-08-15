@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { GraduationCap } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   fetchTestDetail,
   fetchTests,
@@ -43,8 +45,13 @@ export function TestsPage() {
   return (
     <div className="tests-page">
       <div className="page-header">
-        <h1>Tests</h1>
-        <p className="page-subtitle">Des lots de 25 textes pour mesurer votre rétention.</p>
+        <div>
+          <h1>Tests</h1>
+          <p className="page-subtitle">Des lots de 25 textes pour mesurer votre rétention.</p>
+        </div>
+        <Link to="/learn" className="primary-button page-header-cta">
+          <GraduationCap /> Continuer l'apprentissage
+        </Link>
       </div>
       {tests === null && <p>Chargement...</p>}
       {tests?.length === 0 && (

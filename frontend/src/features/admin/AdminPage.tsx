@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { GraduationCap } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   confirmImport,
   createAdminUser,
@@ -28,8 +30,13 @@ export function AdminPage() {
   return (
     <div className="admin-page">
       <div className="page-header">
-        <h1>Administration</h1>
-        <p className="page-subtitle">Contenu, imports et utilisateurs.</p>
+        <div>
+          <h1>Administration</h1>
+          <p className="page-subtitle">Contenu, imports et utilisateurs.</p>
+        </div>
+        <Link to="/learn" className="primary-button page-header-cta">
+          <GraduationCap /> Continuer l'apprentissage
+        </Link>
       </div>
       <div className="admin-tabs">
         <button className={tab === "texts" ? "active" : ""} onClick={() => setTab("texts")}>

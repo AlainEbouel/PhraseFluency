@@ -23,6 +23,7 @@ import type {
   SubmitResult,
 } from "../../types/learning";
 import { AudioButton } from "../../components/AudioButton";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Meter } from "../../components/Meter";
 import { VerdictBadge } from "../../components/VerdictBadge";
 import { ChatPanel } from "../conversations/ChatPanel";
@@ -65,8 +66,9 @@ export function LearningPage() {
   const [exploreError, setExploreError] = useState<string | null>(null);
   const [isChoosingLevel, setIsChoosingLevel] = useState(false);
   const [levelError, setLevelError] = useState<string | null>(null);
+  const [showAcquireConfirm, setShowAcquireConfirm] = useState(false);
   const draftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const explanationRef = useRef<HTMLParagraphElement | null>(null);
+  const explanationRef = useRef<HTMLDivElement | null>(null);
   const chatRef = useRef<HTMLDivElement | null>(null);
 
   const feedbackFlash = useContentFlash(feedback);
@@ -245,6 +247,7 @@ export function LearningPage() {
 
   async function handleAcquire() {
     if (!exercise) return;
+    setShowAcquireConfirm(false);
     try {
       await acquireText(exercise.text_id);
       loadNext();
@@ -495,6 +498,9 @@ export function LearningPage() {
             <div className="your-answer-block">
               <span className="your-answer-label">Votre réponse</span>
               <p className="your-answer-text">{submittedAnswer}</p>
+              <button type="button" className="reevaluate-button" onClick={handleReevaluate}>
+                Réévaluer
+              </button>
             </div>
 
             <p className="points-awarded">+{feedback.points_awarded} point(s)</p>
@@ -543,15 +549,12 @@ export function LearningPage() {
               <button type="button" onClick={handleExplanation}>
                 Pourquoi ?
               </button>
-              <button type="button" onClick={handleReevaluate}>
-                Réévaluer
-              </button>
               {feedback.progress.status === "ACTIVE" && (
                 <>
                   <button type="button" onClick={handleRepetition}>
                     +1 répétition
                   </button>
-                  <button type="button" onClick={handleAcquire}>
+                  <button type="button" onClick={() => setShowAcquireConfirm(true)}>
                     Marquer comme acquis
                   </button>
                 </>
@@ -564,16 +567,33 @@ export function LearningPage() {
               </button>
             </div>
 
-            {repetitionMessage && <p className="success-text">{repetitionMessage}</p>}
-            {explanation && (
-              <p className="explanation-text" ref={explanationRef}>
-                {explanation}
-              </p>
+            {showAcquireConfirm && (
+              <ConfirmDialog
+                title="Marquer ce texte comme acquis ?"
+                message="Ce texte ne sera plus jamais proposé en révision, même si vous ne l'avez pas encore répété naturellement le nombre de fois requis. Cette action est définitive."
+                confirmLabel="Marquer comme acquis"
+                onConfirm={handleAcquire}
+                onCancel={() => setShowAcquireConfirm(false)}
+              />
             )}
-            <div ref={chatRef}>{showChat && <ChatPanel textId={exercise.text_id} />}</div>
           </div>
 
           <div className="feedback-sidebar">
+            {repetitionMessage && <p className="success-text">{repetitionMessage}</p>}
+
+            {explanation && (
+              <div className="card explanation-card" ref={explanationRef}>
+                <span className="reference-heading">Pourquoi ?</span>
+                <p className="explanation-text">{explanation}</p>
+              </div>
+            )}
+
+            {showChat && (
+              <div className="card chat-card" ref={chatRef}>
+                <ChatPanel textId={exercise.text_id} />
+              </div>
+            )}
+
             <div className="card explore-panel">
               <span className="reference-heading">Essayer une autre formulation</span>
               <p className="explore-hint">
