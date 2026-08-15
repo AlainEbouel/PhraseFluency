@@ -5,21 +5,15 @@ import { fetchDetailedStatistics, fetchWeaknessProfile } from "../../api/statist
 import type { DetailedStatistics, WeaknessProfile } from "../../api/statistics";
 import { Meter } from "../../components/Meter";
 import { ERROR_CATEGORY_LABELS } from "../../constants/errorCategories";
+import {
+  TEXT_PROGRESS_STATUS_LABELS,
+  TEXT_PROGRESS_STATUS_PILL,
+} from "../../constants/textProgressStatus";
 import { useContentFlash } from "../../hooks/useContentFlash";
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
-
-const STATUS_PILL: Record<string, string> = {
-  MASTERED: "pill-good",
-  MANUALLY_ACQUIRED: "pill-good",
-  ACTIVE: "pill-brand",
-  TEST_ASSIGNED: "pill-brand",
-  WAITING_FOR_TEST_ASSIGNMENT: "pill-warning",
-  DISABLED: "pill-critical",
-  UNSEEN: "pill",
-};
 
 const VERDICT_PILL: Record<string, string> = {
   CORRECT_NATURAL: "pill-good",
@@ -142,7 +136,9 @@ export function StatisticsPage() {
           <ul className="kv-list">
             {stats.status_counts.map((row) => (
               <li className="kv-row" key={row.status}>
-                <span className={`pill ${STATUS_PILL[row.status] ?? "pill"}`}>{row.status}</span>
+                <span className={`pill ${TEXT_PROGRESS_STATUS_PILL[row.status] ?? "pill"}`}>
+                  {TEXT_PROGRESS_STATUS_LABELS[row.status] ?? row.status}
+                </span>
                 <span className="kv-row-value">{row.count}</span>
               </li>
             ))}

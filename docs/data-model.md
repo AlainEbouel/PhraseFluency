@@ -89,6 +89,11 @@ Possible statuses:
 -   MANUALLY_ACQUIRED
 -   DISABLED
 
+`DISABLED` is admin-only and permanent: an admin can hide a specific text
+from one user's bank (from any status, including one they've never seen),
+and the active bank automatically backfills the slot from the general pool
+if the text was `ACTIVE`. There is no undo, matching `MANUALLY_ACQUIRED`.
+
 ## UserLearningState
 
 -   user_id

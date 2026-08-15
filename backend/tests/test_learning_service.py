@@ -770,6 +770,108 @@ class TestRepetitionAndAcquisition:
         assert active[0].text_id != progress_row.text_id
 
 
+class TestDisableTextForUser:
+    def test_disabling_an_active_text_backfills_the_bank(self, db_session):
+        user = make_user(db_session)
+        for _ in range(2):
+            make_text(db_session)
+        service.activate_up_to_bank_target(db_session, user.id, target=1)
+        db_session.commit()
+        progress_row = db_session.scalars(
+            select(UserTextProgress).where(UserTextProgress.user_id == user.id)
+        ).one()
+
+        updated = service.disable_text_for_user(db_session, user.id, progress_row.text_id)
+
+        assert updated.status == TextProgressStatus.DISABLED
+        active = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id, UserTextProgress.status == TextProgressStatus.ACTIVE
+            )
+        ).all()
+        assert len(active) == 1
+        assert active[0].text_id != progress_row.text_id
+
+    def test_disabling_a_non_active_text_does_not_trigger_a_backfill(self, db_session):
+        user = make_user(db_session)
+        for _ in range(3):
+            make_text(db_session)
+        service.activate_up_to_bank_target(db_session, user.id, target=2)
+        db_session.commit()
+        active_rows = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id, UserTextProgress.status == TextProgressStatus.ACTIVE
+            )
+        ).all()
+        mastered, still_active = active_rows[0], active_rows[1]
+        # Simulate a text that was already mastered by a prior attempt,
+        # bypassing the usual backfill so the active count reflects only
+        # `still_active` — isolates whether *this* disable call backfills.
+        mastered.status = TextProgressStatus.MASTERED
+        db_session.add(mastered)
+        db_session.commit()
+
+        updated = service.disable_text_for_user(db_session, user.id, mastered.text_id)
+
+        assert updated.status == TextProgressStatus.DISABLED
+        active = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id, UserTextProgress.status == TextProgressStatus.ACTIVE
+            )
+        ).all()
+        assert [a.text_id for a in active] == [still_active.text_id]
+
+    def test_disabling_a_never_seen_text_creates_a_disabled_row(self, db_session):
+        user = make_user_without_level(db_session)
+        text = make_text(db_session)
+        assert db_session.get(UserTextProgress, (user.id, text.id)) is None
+
+        updated = service.disable_text_for_user(db_session, user.id, text.id)
+
+        assert updated.status == TextProgressStatus.DISABLED
+        assert db_session.get(UserTextProgress, (user.id, text.id)) is not None
+
+    def test_disabling_an_already_disabled_text_is_idempotent(self, db_session):
+        user = make_user_without_level(db_session)
+        text = make_text(db_session)
+        service.disable_text_for_user(db_session, user.id, text.id)
+
+        updated = service.disable_text_for_user(db_session, user.id, text.id)
+
+        assert updated.status == TextProgressStatus.DISABLED
+
+
+class TestListUserTextBank:
+    def test_lists_every_status_for_the_user(self, db_session):
+        user = make_user(db_session)
+        for _ in range(2):
+            make_text(db_session)
+        service.activate_up_to_bank_target(db_session, user.id, target=2)
+        db_session.commit()
+        progress_rows = db_session.scalars(
+            select(UserTextProgress).where(UserTextProgress.user_id == user.id)
+        ).all()
+        service.disable_text_for_user(db_session, user.id, progress_rows[0].text_id)
+
+        rows = service.list_user_text_bank(db_session, user.id)
+
+        assert len(rows) == 2
+        statuses = {text_id: status for text_id, _, status, *_ in rows}
+        assert statuses[progress_rows[0].text_id] == TextProgressStatus.DISABLED
+
+    def test_search_filters_by_french_text(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session, french_text="Bonjour le monde")
+        make_text(db_session, french_text="Autre chose entièrement")
+        service.activate_up_to_bank_target(db_session, user.id, target=2)
+        db_session.commit()
+
+        rows = service.list_user_text_bank(db_session, user.id, search="bonjour")
+
+        assert len(rows) == 1
+        assert rows[0][1] == "Bonjour le monde"
+
+
 class TestReevaluate:
     def test_reevaluation_creates_new_evaluation_and_updates_active_pointer(self, db_session):
         user = make_user(db_session)

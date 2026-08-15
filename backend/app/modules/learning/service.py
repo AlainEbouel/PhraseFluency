@@ -23,6 +23,7 @@ from app.modules.learning.engine import (
     DEFAULT_ACTIVE_BANK_SIZE,
     QueueCandidate,
     TextProgressState,
+    disable,
     increase_repetition,
     manually_acquire,
     points_for_verdict,
@@ -509,6 +510,69 @@ def manually_acquire_text(db: Session, user_id: uuid.UUID, text_id: uuid.UUID) -
     activate_up_to_bank_target(db, user_id)
     db.commit()
     return progress
+
+
+def list_user_text_bank(
+    db: Session, user_id: uuid.UUID, search: str | None = None
+) -> list[tuple[uuid.UUID, str, TextProgressStatus, int, int, int]]:
+    query = (
+        select(
+            UserTextProgress.text_id,
+            TextVersion.french_text,
+            UserTextProgress.status,
+            UserTextProgress.natural_count,
+            UserTextProgress.incorrect_count,
+            UserTextProgress.times_presented,
+        )
+        .join(Text, Text.id == UserTextProgress.text_id)
+        .join(TextVersion, TextVersion.id == Text.current_version_id)
+        .where(UserTextProgress.user_id == user_id)
+        .order_by(TextVersion.french_text)
+    )
+    if search:
+        query = query.where(TextVersion.french_text.ilike(f"%{search}%"))
+    return list(db.execute(query).all())
+
+
+def disable_text_for_user(db: Session, user_id: uuid.UUID, text_id: uuid.UUID) -> UserTextProgress:
+    """Permanently hide a text from one user's bank (admin action, no undo).
+
+    A replacement is pulled in from the general bank when the disabled text
+    was occupying an active slot; otherwise there is nothing to replenish.
+    """
+    progress = db.get(UserTextProgress, (user_id, text_id))
+    if progress is None:
+        progress = UserTextProgress(user_id=user_id, text_id=text_id, status=TextProgressStatus.DISABLED)
+        db.add(progress)
+        db.commit()
+        return progress
+    if progress.status == TextProgressStatus.DISABLED:
+        return progress
+    was_active = progress.status == TextProgressStatus.ACTIVE
+    _apply_domain(progress, disable(_to_domain(progress)))
+    db.add(progress)
+    if was_active:
+        activate_up_to_bank_target(db, user_id)
+    db.commit()
+    return progress
+
+
+def get_user_text_bank_item(
+    db: Session, user_id: uuid.UUID, text_id: uuid.UUID
+) -> tuple[uuid.UUID, str, TextProgressStatus, int, int, int] | None:
+    return db.execute(
+        select(
+            UserTextProgress.text_id,
+            TextVersion.french_text,
+            UserTextProgress.status,
+            UserTextProgress.natural_count,
+            UserTextProgress.incorrect_count,
+            UserTextProgress.times_presented,
+        )
+        .join(Text, Text.id == UserTextProgress.text_id)
+        .join(TextVersion, TextVersion.id == Text.current_version_id)
+        .where(UserTextProgress.user_id == user_id, UserTextProgress.text_id == text_id)
+    ).first()
 
 
 def reevaluate_text(

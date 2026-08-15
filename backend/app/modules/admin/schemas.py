@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.modules.learning.enums import TextProgressStatus
 from app.modules.texts.models import Difficulty, ExerciseType
 from app.modules.users.models import UserRole
 
@@ -67,3 +68,12 @@ class UserSummaryOut(BaseModel):
     last_login_at: datetime | None
 
     model_config = {"from_attributes": True}
+
+
+class UserTextBankItemOut(BaseModel):
+    text_id: uuid.UUID
+    french_text: str
+    status: TextProgressStatus
+    natural_count: int
+    incorrect_count: int
+    times_presented: int

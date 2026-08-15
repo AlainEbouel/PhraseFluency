@@ -91,6 +91,30 @@ export function enableUser(userId: string): Promise<AdminUser> {
   return apiRequest(`/api/v1/admin/users/${userId}/enable`, { method: "PATCH" });
 }
 
+export interface AdminUserTextBankItem {
+  text_id: string;
+  french_text: string;
+  status: string;
+  natural_count: number;
+  incorrect_count: number;
+  times_presented: number;
+}
+
+export function fetchAdminUserTextBank(
+  userId: string,
+  search?: string
+): Promise<AdminUserTextBankItem[]> {
+  const query = search ? `?search=${encodeURIComponent(search)}` : "";
+  return apiRequest(`/api/v1/admin/users/${userId}/texts${query}`);
+}
+
+export function disableTextForUser(
+  userId: string,
+  textId: string
+): Promise<AdminUserTextBankItem> {
+  return apiRequest(`/api/v1/admin/users/${userId}/texts/${textId}/disable`, { method: "PATCH" });
+}
+
 export interface ImportRowPreview {
   row_number: number;
   french_text: string;

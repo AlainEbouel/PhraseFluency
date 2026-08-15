@@ -12,9 +12,11 @@ from app.modules.admin.schemas import (
     TextVersionOut,
     UpdateTextVersionIn,
     UserSummaryOut,
+    UserTextBankItemOut,
 )
 from app.modules.auth.dependencies import require_admin
 from app.modules.imports.models import ImportBatch
+from app.modules.learning import service as learning_service
 from app.modules.texts import service as texts_service
 from app.modules.users import service as users_service
 from app.modules.users.models import User
@@ -153,3 +155,40 @@ def enable_user(
     except ValueError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     return UserSummaryOut.model_validate(user)
+
+
+def _bank_item(row: tuple) -> UserTextBankItemOut:
+    text_id, french_text, status_, natural_count, incorrect_count, times_presented = row
+    return UserTextBankItemOut(
+        text_id=text_id,
+        french_text=french_text,
+        status=status_,
+        natural_count=natural_count,
+        incorrect_count=incorrect_count,
+        times_presented=times_presented,
+    )
+
+
+@router.get("/users/{user_id}/texts", response_model=list[UserTextBankItemOut])
+def get_user_text_bank(
+    user_id: uuid.UUID,
+    search: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    rows = learning_service.list_user_text_bank(db, user_id, search=search)
+    return [_bank_item(row) for row in rows]
+
+
+@router.patch("/users/{user_id}/texts/{text_id}/disable", response_model=UserTextBankItemOut)
+def disable_user_text(
+    user_id: uuid.UUID,
+    text_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    learning_service.disable_text_for_user(db, user_id, text_id)
+    row = learning_service.get_user_text_bank_item(db, user_id, text_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Text not found")
+    return _bank_item(row)

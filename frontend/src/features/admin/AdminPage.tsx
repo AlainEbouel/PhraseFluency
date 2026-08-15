@@ -6,10 +6,12 @@ import {
   confirmImport,
   createAdminUser,
   disableText,
+  disableTextForUser,
   disableUser,
   enableText,
   enableUser,
   fetchAdminTexts,
+  fetchAdminUserTextBank,
   fetchAdminUsers,
   fetchImportBatches,
   previewImport,
@@ -17,9 +19,15 @@ import {
 import type {
   AdminTextSummary,
   AdminUser,
+  AdminUserTextBankItem,
   ImportBatch,
   ImportPreview,
 } from "../../api/admin";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import {
+  TEXT_PROGRESS_STATUS_LABELS,
+  TEXT_PROGRESS_STATUS_PILL,
+} from "../../constants/textProgressStatus";
 import { useAuth } from "../auth/AuthContext";
 
 type Tab = "texts" | "imports" | "users";
@@ -235,6 +243,7 @@ function UsersTab() {
   const [role, setRole] = useState<"USER" | "ADMIN">("USER");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   function reload() {
     fetchAdminUsers().then(setUsers).catch(() => setUsers([]));
@@ -273,6 +282,10 @@ function UsersTab() {
     } catch {
       setError("Impossible de modifier le statut de ce compte.");
     }
+  }
+
+  if (selectedUser) {
+    return <UserBankView user={selectedUser} onBack={() => setSelectedUser(null)} />;
   }
 
   return (
@@ -332,6 +345,9 @@ function UsersTab() {
                 <td>{new Date(user.created_at).toLocaleDateString()}</td>
                 <td>{user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "—"}</td>
                 <td>
+                  <button type="button" onClick={() => setSelectedUser(user)}>
+                    Voir la banque
+                  </button>{" "}
                   <button
                     type="button"
                     onClick={() => toggle(user)}
@@ -346,6 +362,109 @@ function UsersTab() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function UserBankView({ user, onBack }: { user: AdminUser; onBack: () => void }) {
+  const [items, setItems] = useState<AdminUserTextBankItem[] | null>(null);
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<AdminUserTextBankItem | null>(null);
+
+  function reload(currentSearch: string) {
+    fetchAdminUserTextBank(user.id, currentSearch || undefined)
+      .then(setItems)
+      .catch(() => setItems([]));
+  }
+
+  useEffect(() => {
+    reload("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id]);
+
+  async function handleDisable() {
+    if (!confirmTarget) return;
+    setError(null);
+    try {
+      await disableTextForUser(user.id, confirmTarget.text_id);
+      setConfirmTarget(null);
+      reload(search);
+    } catch {
+      setError("Impossible de désactiver ce texte.");
+      setConfirmTarget(null);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={onBack} className="back-link">
+        ← Retour aux utilisateurs
+      </button>
+      <h2>Banque de {user.email}</h2>
+
+      <div className="admin-search-row">
+        <input
+          type="text"
+          placeholder="Rechercher un texte français..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && reload(search)}
+        />
+        <button type="button" onClick={() => reload(search)}>
+          Rechercher
+        </button>
+      </div>
+
+      {error && <p className="error-text">{error}</p>}
+
+      <div className="card">
+        <table className="stats-table">
+          <thead>
+            <tr>
+              <th>Texte</th>
+              <th>Statut</th>
+              <th>Présenté</th>
+              <th>Réponses naturelles</th>
+              <th>Réponses incorrectes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items?.map((item) => (
+              <tr key={item.text_id}>
+                <td>{item.french_text}</td>
+                <td>
+                  <span className={`pill ${TEXT_PROGRESS_STATUS_PILL[item.status] ?? "pill"}`}>
+                    {TEXT_PROGRESS_STATUS_LABELS[item.status] ?? item.status}
+                  </span>
+                </td>
+                <td>{item.times_presented}</td>
+                <td>{item.natural_count}</td>
+                <td>{item.incorrect_count}</td>
+                <td>
+                  {item.status !== "DISABLED" && (
+                    <button type="button" onClick={() => setConfirmTarget(item)}>
+                      Désactiver
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {items?.length === 0 && <p className="empty-state">Aucun texte pour l'instant.</p>}
+      </div>
+
+      {confirmTarget && (
+        <ConfirmDialog
+          title="Désactiver ce texte pour cet utilisateur ?"
+          message={`"${confirmTarget.french_text}" ne sera plus jamais proposé à ${user.email}. Un nouveau texte de la banque générale prendra automatiquement sa place si ce texte était actif. Cette action est définitive.`}
+          confirmLabel="Désactiver"
+          onConfirm={handleDisable}
+          onCancel={() => setConfirmTarget(null)}
+        />
+      )}
     </div>
   );
 }

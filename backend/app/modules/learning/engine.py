@@ -176,6 +176,14 @@ def manually_acquire(progress: TextProgressState) -> TextProgressState:
     )
 
 
+def disable(progress: TextProgressState) -> TextProgressState:
+    return replace(
+        progress,
+        status=TextProgressStatus.DISABLED,
+        next_review_at_exercise=None,
+    )
+
+
 def tier_weights(current_level: Difficulty) -> dict[Difficulty, float]:
     """Target share of the active bank for the user's level and the two above.
 
