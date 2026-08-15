@@ -1143,10 +1143,37 @@ button {
   padding-left: var(--space-5);
 }
 
-.explore-panel {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px dashed var(--border-hairline);
+.feedback-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+.feedback-sidebar {
+  width: 100%;
+}
+
+@media (min-width: 1200px) {
+  .learning-screen-wide {
+    max-width: 980px;
+  }
+
+  .feedback-layout {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .feedback-layout .feedback-panel {
+    flex: 0 0 640px;
+  }
+
+  .feedback-sidebar {
+    flex: 1 1 260px;
+    min-width: 240px;
+    position: sticky;
+    top: var(--space-6);
+  }
 }
 
 .explore-hint {

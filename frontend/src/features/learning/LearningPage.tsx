@@ -66,10 +66,24 @@ export function LearningPage() {
   const [isChoosingLevel, setIsChoosingLevel] = useState(false);
   const [levelError, setLevelError] = useState<string | null>(null);
   const draftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const explanationRef = useRef<HTMLParagraphElement | null>(null);
+  const chatRef = useRef<HTMLDivElement | null>(null);
 
   const feedbackFlash = useContentFlash(feedback);
   const pendingResultFlash = useContentFlash(pendingResult);
   const exploreResultFlash = useContentFlash(exploreResult);
+
+  useEffect(() => {
+    if (explanation) {
+      explanationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [explanation]);
+
+  useEffect(() => {
+    if (showChat) {
+      chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showChat]);
 
   const loadNext = useCallback(() => {
     setPhase("loading");
@@ -248,6 +262,7 @@ export function LearningPage() {
           ? { ...prev, verdict: result.verdict as SubmitResult["verdict"], feedback: result.feedback, corrected_answer: result.corrected_answer }
           : prev
       );
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setSubmitError("La réévaluation a échoué. Réessayez.");
     }
@@ -325,7 +340,7 @@ export function LearningPage() {
   if (!exercise) return null;
 
   return (
-    <div className="learning-screen">
+    <div className={`learning-screen${phase === "feedback" ? " learning-screen-wide" : ""}`}>
       {exercise.is_review && <span className="review-badge">Révision</span>}
       <Meter
         value={exercise.progress.natural_count}
@@ -468,124 +483,132 @@ export function LearningPage() {
         )}
 
       {phase === "feedback" && feedback && (
-        <div className={`feedback-panel${feedbackFlash ? " content-flash" : ""}`}>
-          <div className="feedback-badges">
-            <VerdictBadge verdict={feedback.verdict} />
-            <span className={`pill ${DIFFICULTY_PILL[feedback.difficulty] ?? "pill"}`}>
-              {DIFFICULTY_LABELS[feedback.difficulty] ?? feedback.difficulty}
-            </span>
-          </div>
-
-          <div className="your-answer-block">
-            <span className="your-answer-label">Votre réponse</span>
-            <p className="your-answer-text">{submittedAnswer}</p>
-          </div>
-
-          <p className="points-awarded">+{feedback.points_awarded} point(s)</p>
-          <p className="feedback-text">{feedback.feedback}</p>
-
-          {feedback.corrected_answer && (
-            <p className="corrected-answer">
-              Forme correcte : <strong>{feedback.corrected_answer}</strong>
-              {feedback.writing_issues.length > 0 && (
-                <span className="writing-issues-detail">
-                  {" "}
-                  ({feedback.writing_issues.join(" · ")})
-                </span>
-              )}
-            </p>
-          )}
-
-          <span className="reference-heading">Traduction recommandée</span>
-          <div className="reference-block reference-block-preferred">
-            <span>{feedback.preferred_translation}</span>
-            <AudioButton src={preferredAudioUrl(exercise.text_id)} label={feedback.preferred_translation} />
-          </div>
-
-          {feedback.alternatives.length > 0 && (
-            <span className="reference-heading">Alternatives naturelles</span>
-          )}
-          {feedback.alternatives.map((alt, i) => (
-            <div className="reference-block" key={i}>
-              <span>{alt}</span>
-              <AudioButton src={alternativeAudioUrl(exercise.text_id, i)} label={alt} />
+        <div className="feedback-layout">
+          <div className={`feedback-panel${feedbackFlash ? " content-flash" : ""}`}>
+            <div className="feedback-badges">
+              <VerdictBadge verdict={feedback.verdict} />
+              <span className={`pill ${DIFFICULTY_PILL[feedback.difficulty] ?? "pill"}`}>
+                {DIFFICULTY_LABELS[feedback.difficulty] ?? feedback.difficulty}
+              </span>
             </div>
-          ))}
 
-          {feedback.patterns.length > 0 && (
-            <div className="patterns-block">
-              <strong>Formulations utiles :</strong>
-              <ul>
-                {feedback.patterns.map((pattern, i) => (
-                  <li key={i}>{pattern}</li>
-                ))}
-              </ul>
+            <div className="your-answer-block">
+              <span className="your-answer-label">Votre réponse</span>
+              <p className="your-answer-text">{submittedAnswer}</p>
             </div>
-          )}
 
-          <div className="explore-panel">
-            <span className="reference-heading">Essayer une autre formulation</span>
-            <p className="explore-hint">
-              Curieux si une autre phrase aurait aussi été acceptée ? Testez-la ici,
-              sans conséquence : cela ne change rien à votre score.
-            </p>
-            <textarea
-              className="answer-input explore-input"
-              value={exploreInput}
-              onChange={(e) => setExploreInput(e.target.value)}
-              placeholder="Une autre formulation en anglais..."
-              rows={2}
-            />
-            {exploreError && <p className="error-text">{exploreError}</p>}
-            <button
-              type="button"
-              onClick={handleExplore}
-              disabled={isExploring || !exploreInput.trim()}
-            >
-              {isExploring ? "Vérification..." : "Vérifier cette formulation"}
-            </button>
+            <p className="points-awarded">+{feedback.points_awarded} point(s)</p>
+            <p className="feedback-text">{feedback.feedback}</p>
 
-            {exploreResult && (
-              <div className={`explore-result${exploreResultFlash ? " content-flash" : ""}`}>
-                <VerdictBadge verdict={exploreResult.verdict} />
-                <p className="feedback-text">{exploreResult.feedback}</p>
-                {exploreResult.corrected_answer && (
-                  <p className="corrected-answer">
-                    Forme correcte : <strong>{exploreResult.corrected_answer}</strong>
-                  </p>
+            {feedback.corrected_answer && (
+              <p className="corrected-answer">
+                Forme correcte : <strong>{feedback.corrected_answer}</strong>
+                {feedback.writing_issues.length > 0 && (
+                  <span className="writing-issues-detail">
+                    {" "}
+                    ({feedback.writing_issues.join(" · ")})
+                  </span>
                 )}
+              </p>
+            )}
+
+            <span className="reference-heading">Traduction recommandée</span>
+            <div className="reference-block reference-block-preferred">
+              <span>{feedback.preferred_translation}</span>
+              <AudioButton src={preferredAudioUrl(exercise.text_id)} label={feedback.preferred_translation} />
+            </div>
+
+            {feedback.alternatives.length > 0 && (
+              <span className="reference-heading">Alternatives naturelles</span>
+            )}
+            {feedback.alternatives.map((alt, i) => (
+              <div className="reference-block" key={i}>
+                <span>{alt}</span>
+                <AudioButton src={alternativeAudioUrl(exercise.text_id, i)} label={alt} />
+              </div>
+            ))}
+
+            {feedback.patterns.length > 0 && (
+              <div className="patterns-block">
+                <strong>Formulations utiles :</strong>
+                <ul>
+                  {feedback.patterns.map((pattern, i) => (
+                    <li key={i}>{pattern}</li>
+                  ))}
+                </ul>
               </div>
             )}
-          </div>
 
-          <div className="feedback-actions">
-            <button type="button" onClick={handleExplanation}>
-              Pourquoi ?
-            </button>
-            <button type="button" onClick={handleReevaluate}>
-              Réévaluer
-            </button>
-            {feedback.progress.status === "ACTIVE" && (
-              <>
-                <button type="button" onClick={handleRepetition}>
-                  +1 répétition
-                </button>
-                <button type="button" onClick={handleAcquire}>
-                  Marquer comme acquis
-                </button>
-              </>
+            <div className="feedback-actions">
+              <button type="button" onClick={handleExplanation}>
+                Pourquoi ?
+              </button>
+              <button type="button" onClick={handleReevaluate}>
+                Réévaluer
+              </button>
+              {feedback.progress.status === "ACTIVE" && (
+                <>
+                  <button type="button" onClick={handleRepetition}>
+                    +1 répétition
+                  </button>
+                  <button type="button" onClick={handleAcquire}>
+                    Marquer comme acquis
+                  </button>
+                </>
+              )}
+              <button type="button" onClick={() => setShowChat((v) => !v)}>
+                Demander à l'IA
+              </button>
+              <button type="button" className="primary-button" onClick={loadNext}>
+                Suivant
+              </button>
+            </div>
+
+            {repetitionMessage && <p className="success-text">{repetitionMessage}</p>}
+            {explanation && (
+              <p className="explanation-text" ref={explanationRef}>
+                {explanation}
+              </p>
             )}
-            <button type="button" onClick={() => setShowChat((v) => !v)}>
-              Demander à l'IA
-            </button>
-            <button type="button" className="primary-button" onClick={loadNext}>
-              Suivant
-            </button>
+            <div ref={chatRef}>{showChat && <ChatPanel textId={exercise.text_id} />}</div>
           </div>
 
-          {repetitionMessage && <p className="success-text">{repetitionMessage}</p>}
-          {explanation && <p className="explanation-text">{explanation}</p>}
-          {showChat && <ChatPanel textId={exercise.text_id} />}
+          <div className="feedback-sidebar">
+            <div className="card explore-panel">
+              <span className="reference-heading">Essayer une autre formulation</span>
+              <p className="explore-hint">
+                Curieux si une autre phrase aurait aussi été acceptée ? Testez-la ici,
+                sans conséquence : cela ne change rien à votre score.
+              </p>
+              <textarea
+                className="answer-input explore-input"
+                value={exploreInput}
+                onChange={(e) => setExploreInput(e.target.value)}
+                placeholder="Une autre formulation en anglais..."
+                rows={2}
+              />
+              {exploreError && <p className="error-text">{exploreError}</p>}
+              <button
+                type="button"
+                onClick={handleExplore}
+                disabled={isExploring || !exploreInput.trim()}
+              >
+                {isExploring ? "Vérification..." : "Vérifier cette formulation"}
+              </button>
+
+              {exploreResult && (
+                <div className={`explore-result${exploreResultFlash ? " content-flash" : ""}`}>
+                  <VerdictBadge verdict={exploreResult.verdict} />
+                  <p className="feedback-text">{exploreResult.feedback}</p>
+                  {exploreResult.corrected_answer && (
+                    <p className="corrected-answer">
+                      Forme correcte : <strong>{exploreResult.corrected_answer}</strong>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
