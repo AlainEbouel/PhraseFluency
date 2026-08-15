@@ -931,6 +931,19 @@ button {
   border-left: 3px solid var(--status-warning);
 }
 
+@keyframes content-flash {
+  0% {
+    box-shadow: 0 0 0 3px var(--brand-tint-strong);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.content-flash {
+  animation: content-flash 500ms ease-out;
+}
+
 .retry-hint-notice {
   margin: 0 0 var(--space-3) 0;
   padding: var(--space-2) var(--space-3);

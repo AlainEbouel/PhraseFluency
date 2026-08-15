@@ -27,6 +27,7 @@ import { Meter } from "../../components/Meter";
 import { VerdictBadge } from "../../components/VerdictBadge";
 import { ChatPanel } from "../conversations/ChatPanel";
 import { useAudioRecorder } from "../../hooks/useAudioRecorder";
+import { useContentFlash } from "../../hooks/useContentFlash";
 import { DIFFICULTY_LABELS, DIFFICULTY_PILL } from "../../constants/difficulty";
 
 const SELECTABLE_LEVELS: Difficulty[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -65,6 +66,10 @@ export function LearningPage() {
   const [isChoosingLevel, setIsChoosingLevel] = useState(false);
   const [levelError, setLevelError] = useState<string | null>(null);
   const draftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const feedbackFlash = useContentFlash(feedback);
+  const pendingResultFlash = useContentFlash(pendingResult);
+  const exploreResultFlash = useContentFlash(exploreResult);
 
   const loadNext = useCallback(() => {
     setPhase("loading");
@@ -404,7 +409,9 @@ export function LearningPage() {
 
       {(phase === "pending-writing-issue" || phase === "pending-unnatural-offer") &&
         pendingResult && (
-          <div className="feedback-panel pending-panel">
+          <div
+            className={`feedback-panel pending-panel${pendingResultFlash ? " content-flash" : ""}`}
+          >
             <div className="feedback-badges">
               <VerdictBadge verdict={pendingResult.verdict} />
             </div>
@@ -461,7 +468,7 @@ export function LearningPage() {
         )}
 
       {phase === "feedback" && feedback && (
-        <div className="feedback-panel">
+        <div className={`feedback-panel${feedbackFlash ? " content-flash" : ""}`}>
           <div className="feedback-badges">
             <VerdictBadge verdict={feedback.verdict} />
             <span className={`pill ${DIFFICULTY_PILL[feedback.difficulty] ?? "pill"}`}>
@@ -539,7 +546,7 @@ export function LearningPage() {
             </button>
 
             {exploreResult && (
-              <div className="explore-result">
+              <div className={`explore-result${exploreResultFlash ? " content-flash" : ""}`}>
                 <VerdictBadge verdict={exploreResult.verdict} />
                 <p className="feedback-text">{exploreResult.feedback}</p>
                 {exploreResult.corrected_answer && (

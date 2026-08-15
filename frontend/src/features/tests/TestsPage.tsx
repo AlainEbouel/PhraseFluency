@@ -8,6 +8,7 @@ import {
 import type { TestDetail, TestSubmitResult, TestSummary } from "../../api/tests";
 import { VerdictBadge } from "../../components/VerdictBadge";
 import { DIFFICULTY_LABELS, DIFFICULTY_PILL } from "../../constants/difficulty";
+import { useContentFlash } from "../../hooks/useContentFlash";
 
 const STATUS_LABELS: Record<string, string> = {
   AVAILABLE: "Disponible",
@@ -77,6 +78,7 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
   const [feedback, setFeedback] = useState<TestSubmitResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const feedbackFlash = useContentFlash(feedback);
 
   function reload() {
     fetchTestDetail(testId).then(setDetail).catch(() => setError("Impossible de charger le test."));
@@ -164,7 +166,7 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
               </button>
 
               {feedback && (
-                <div className="feedback-panel">
+                <div className={`feedback-panel${feedbackFlash ? " content-flash" : ""}`}>
                   <div className="feedback-badges">
                     <VerdictBadge verdict={feedback.verdict} />
                     <span className={`pill ${DIFFICULTY_PILL[feedback.difficulty] ?? "pill"}`}>
