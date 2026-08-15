@@ -39,10 +39,20 @@ export interface DetailedStatistics {
   ai_usage: { operation: string; count: number; input_tokens: number; output_tokens: number; estimated_cost: number }[];
 }
 
+export interface WeaknessProfile {
+  has_enough_data: boolean;
+  weaknesses: { category: string; count: number }[];
+  suggestions: { category: string; explanation: string; suggestion: string }[];
+}
+
 export function fetchDashboard(): Promise<Dashboard> {
   return apiRequest("/api/v1/statistics/dashboard");
 }
 
 export function fetchDetailedStatistics(): Promise<DetailedStatistics> {
   return apiRequest("/api/v1/statistics/detailed");
+}
+
+export function fetchWeaknessProfile(): Promise<WeaknessProfile> {
+  return apiRequest("/api/v1/statistics/weakness-profile");
 }

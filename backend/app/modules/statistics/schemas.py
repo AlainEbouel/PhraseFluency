@@ -83,6 +83,23 @@ class AIUsageSummaryOut(BaseModel):
     estimated_cost: float
 
 
+class WeaknessCategoryOut(BaseModel):
+    category: str
+    count: int
+
+
+class WeaknessSuggestionOut(BaseModel):
+    category: str
+    explanation: str
+    suggestion: str
+
+
+class WeaknessProfileOut(BaseModel):
+    has_enough_data: bool
+    weaknesses: list[WeaknessCategoryOut]
+    suggestions: list[WeaknessSuggestionOut]
+
+
 class DetailedStatisticsOut(BaseModel):
     status_counts: list[StatusCountOut]
     verdict_counts: list[VerdictCountOut]

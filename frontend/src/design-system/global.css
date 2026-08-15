@@ -1398,6 +1398,42 @@ button {
   box-shadow: none;
 }
 
+.weakness-suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.weakness-suggestion-card {
+  background: var(--brand-tint);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.weakness-suggestion-card h3 {
+  margin: 0 0 var(--space-2) 0;
+  color: var(--brand-hover);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.weakness-suggestion-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0 0;
+  font-weight: 700;
+}
+
+.weakness-suggestion-tip svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--cat-yellow);
+}
+
 .admin-tabs {
   display: flex;
   gap: var(--space-2);

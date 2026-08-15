@@ -17,6 +17,7 @@ class AIOperation(str, enum.Enum):
     GRAMMAR_EXPLANATION = "GRAMMAR_EXPLANATION"
     STT = "STT"
     TTS = "TTS"
+    WEAKNESS_SUGGESTIONS = "WEAKNESS_SUGGESTIONS"
 
 
 class AIUsage(Base, UUIDPrimaryKeyMixin, CreatedAtMixin):

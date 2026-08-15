@@ -15,6 +15,8 @@ from app.modules.evaluations.ports import (
     GrammarExplanationResult,
     ReferenceGenerationRequest,
     ReferenceGenerationResult,
+    WeaknessSuggestionsRequest,
+    WeaknessSuggestionsResult,
 )
 
 
@@ -42,3 +44,8 @@ class EvaluationEngine(ABC):
     def generate_grammar_explanation(
         self, request: GrammarExplanationRequest
     ) -> GrammarExplanationResult: ...
+
+    @abstractmethod
+    def generate_weakness_suggestions(
+        self, request: WeaknessSuggestionsRequest
+    ) -> WeaknessSuggestionsResult: ...

@@ -39,6 +39,9 @@ class FakeEngine(EvaluationEngine):
     def generate_grammar_explanation(self, request):
         raise NotImplementedError
 
+    def generate_weakness_suggestions(self, request):
+        raise NotImplementedError
+
 
 def eval_result(verdict: Verdict, **overrides) -> EvaluationResult:
     defaults = dict(

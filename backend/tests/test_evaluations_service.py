@@ -17,12 +17,20 @@ from app.shared.models import AIOperation, AIUsage
 
 
 class FakeEngine(EvaluationEngine):
-    def __init__(self, reference_result=None, evaluation_result=None, explanation_result=None):
+    def __init__(
+        self,
+        reference_result=None,
+        evaluation_result=None,
+        explanation_result=None,
+        weakness_suggestions_result=None,
+    ):
         self.reference_result = reference_result
         self.evaluation_result = evaluation_result
         self.explanation_result = explanation_result
+        self.weakness_suggestions_result = weakness_suggestions_result
         self.reference_calls = 0
         self.explanation_calls = 0
+        self.weakness_suggestions_calls = 0
 
     def generate_reference(self, request):
         self.reference_calls += 1
@@ -34,6 +42,10 @@ class FakeEngine(EvaluationEngine):
     def generate_grammar_explanation(self, request):
         self.explanation_calls += 1
         return self.explanation_result
+
+    def generate_weakness_suggestions(self, request):
+        self.weakness_suggestions_calls += 1
+        return self.weakness_suggestions_result
 
 
 def make_text_version(db_session, french_text="Je n'ai pas eu l'occasion de regarder ça."):

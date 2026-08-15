@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_user
+from app.modules.evaluations.engine import EvaluationEngineError
+from app.modules.evaluations.service import get_evaluation_engine
 from app.modules.statistics import service
-from app.modules.statistics.schemas import DashboardOut, DetailedStatisticsOut
+from app.modules.statistics.schemas import DashboardOut, DetailedStatisticsOut, WeaknessProfileOut
 from app.modules.users.models import User
 
 router = APIRouter(prefix="/api/v1/statistics", tags=["statistics"])
@@ -18,3 +20,15 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
 @router.get("/detailed", response_model=DetailedStatisticsOut)
 def detailed(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return service.get_detailed_statistics(db, user.id)
+
+
+@router.get("/weakness-profile", response_model=WeaknessProfileOut)
+def weakness_profile(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    engine = get_evaluation_engine()
+    try:
+        return service.get_or_generate_weakness_profile(db, engine, user)
+    except EvaluationEngineError as exc:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            f"Suggestions are temporarily unavailable, please retry: {exc}",
+        ) from exc

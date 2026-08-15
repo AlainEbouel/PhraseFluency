@@ -18,6 +18,9 @@ from app.modules.evaluations.ports import (
     PatternSuggestion,
     ReferenceGenerationRequest,
     ReferenceGenerationResult,
+    WeaknessSuggestion,
+    WeaknessSuggestionsRequest,
+    WeaknessSuggestionsResult,
 )
 from app.modules.evaluations.prompts import (
     EVALUATION_PROMPT_VERSION,
@@ -26,9 +29,12 @@ from app.modules.evaluations.prompts import (
     EXPLANATION_SYSTEM_PROMPT,
     REFERENCE_PROMPT_VERSION,
     REFERENCE_SYSTEM_PROMPT,
+    WEAKNESS_SUGGESTIONS_PROMPT_VERSION,
+    WEAKNESS_SUGGESTIONS_SYSTEM_PROMPT,
     build_evaluation_user_prompt,
     build_explanation_user_prompt,
     build_reference_user_prompt,
+    build_weakness_suggestions_user_prompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,6 +66,16 @@ class _EvaluationSchema(BaseModel):
 
 class _ExplanationSchema(BaseModel):
     explanation: str
+
+
+class _WeaknessSuggestionSchema(BaseModel):
+    category: str
+    explanation: str
+    suggestion: str
+
+
+class _WeaknessSuggestionsSchema(BaseModel):
+    suggestions: list[_WeaknessSuggestionSchema]
 
 
 class OpenAIEvaluationEngine(EvaluationEngine):
@@ -124,6 +140,26 @@ class OpenAIEvaluationEngine(EvaluationEngine):
             explanation=parsed.explanation,
             model=self._model,
             prompt_version=EXPLANATION_PROMPT_VERSION,
+            input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
+            output_tokens=completion.usage.completion_tokens if completion.usage else 0,
+        )
+
+    def generate_weakness_suggestions(
+        self, request: WeaknessSuggestionsRequest
+    ) -> WeaknessSuggestionsResult:
+        completion = self._parse(
+            system_prompt=WEAKNESS_SUGGESTIONS_SYSTEM_PROMPT,
+            user_prompt=build_weakness_suggestions_user_prompt(request),
+            schema=_WeaknessSuggestionsSchema,
+        )
+        parsed = self._require_parsed(completion)
+        return WeaknessSuggestionsResult(
+            suggestions=[
+                WeaknessSuggestion(s.category, s.explanation, s.suggestion)
+                for s in parsed.suggestions
+            ],
+            model=self._model,
+            prompt_version=WEAKNESS_SUGGESTIONS_PROMPT_VERSION,
             input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
             output_tokens=completion.usage.completion_tokens if completion.usage else 0,
         )

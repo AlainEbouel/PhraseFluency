@@ -10,11 +10,15 @@ from app.modules.evaluations.openai_engine import (
     _ExplanationSchema,
     _PatternSchema,
     _ReferenceSchema,
+    _WeaknessSuggestionSchema,
+    _WeaknessSuggestionsSchema,
 )
 from app.modules.evaluations.ports import (
     EvaluationRequest,
     GrammarExplanationRequest,
     ReferenceGenerationRequest,
+    WeaknessCategoryContext,
+    WeaknessSuggestionsRequest,
 )
 
 
@@ -245,6 +249,39 @@ class TestGenerateGrammarExplanation:
 
         assert result.explanation == parsed.explanation
         assert result.prompt_version == "explanation-v1"
+
+
+class TestGenerateWeaknessSuggestions:
+    def test_happy_path_maps_all_fields(self):
+        parsed = _WeaknessSuggestionsSchema(
+            suggestions=[
+                _WeaknessSuggestionSchema(
+                    category="WORD_ORDER",
+                    explanation="Tu places souvent l'adverbe avant le verbe conjugué.",
+                    suggestion="Relis ta phrase en isolant le verbe et l'adverbe.",
+                )
+            ]
+        )
+        endpoint = _FakeParseEndpoint(result=_FakeCompletion(parsed=parsed, usage=(40, 25)))
+        engine = make_engine(endpoint)
+
+        result = engine.generate_weakness_suggestions(
+            WeaknessSuggestionsRequest(
+                categories=[
+                    WeaknessCategoryContext(
+                        category="WORD_ORDER", count=7, example_feedback=["The word order was off."]
+                    )
+                ]
+            )
+        )
+
+        assert len(result.suggestions) == 1
+        assert result.suggestions[0].category == "WORD_ORDER"
+        assert result.suggestions[0].explanation == parsed.suggestions[0].explanation
+        assert result.suggestions[0].suggestion == parsed.suggestions[0].suggestion
+        assert result.prompt_version == "weakness-v1"
+        assert result.input_tokens == 40
+        assert result.output_tokens == 25
 
 
 class TestFailureModes:

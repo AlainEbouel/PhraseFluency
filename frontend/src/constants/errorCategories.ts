@@ -1,0 +1,15 @@
+export const ERROR_CATEGORY_LABELS: Record<string, string> = {
+  VERB_TENSE: "Temps des verbes",
+  MODAL_VERBS: "Verbes modaux",
+  CONDITIONALS: "Conditionnels",
+  PREPOSITIONS: "Prépositions",
+  ARTICLES: "Articles",
+  WORD_ORDER: "Ordre des mots",
+  PHRASAL_VERBS: "Verbes à particule",
+  FALSE_FRIENDS: "Faux amis",
+  REGISTER: "Registre de langue",
+  AGREEMENT: "Accords",
+  VOCABULARY_CHOICE: "Choix de vocabulaire",
+  PUNCTUATION_OR_CAPITALIZATION: "Ponctuation / majuscules",
+  OTHER: "Autre",
+};

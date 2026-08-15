@@ -4,16 +4,23 @@ from datetime import timedelta
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from app.modules.evaluations.engine import EvaluationEngine
 from app.modules.evaluations.enums import Verdict
 from app.modules.evaluations.models import Attempt, Evaluation
+from app.modules.evaluations.ports import WeaknessCategoryContext, WeaknessSuggestionsRequest
 from app.modules.learning.engine import DEFAULT_ACTIVE_BANK_SIZE
 from app.modules.learning.enums import TextProgressStatus
 from app.modules.learning.models import UserTextProgress
+from app.modules.statistics.models import UserWeaknessProfile
 from app.modules.tests.models import Test, TestAttempt, TestAttemptStatus
 from app.modules.tests.service import list_tests_for_user
 from app.modules.texts.models import Pattern, Text, TextVersion, pattern_text_versions
+from app.modules.users.models import User
+from app.shared.ai_usage import record_ai_usage
 from app.shared.mixins import utcnow
-from app.shared.models import AIUsage
+from app.shared.models import AIOperation, AIUsage
+
+DEFAULT_WEAKNESS_CATEGORY_LIMIT = 3
 
 SUCCESS_VERDICTS = (
     Verdict.CORRECT_NATURAL,
@@ -314,3 +321,92 @@ def get_detailed_statistics(db: Session, user_id: uuid.UUID) -> dict:
         },
         "ai_usage": ai_usage,
     }
+
+
+def top_error_categories(
+    db: Session, user_id: uuid.UUID, limit: int = DEFAULT_WEAKNESS_CATEGORY_LIMIT
+) -> list[dict]:
+    """Most frequent error categories for a user, ranked descending.
+
+    Same join as error_category_counts in get_detailed_statistics above
+    (only counts each attempt's *active* evaluation, so re-evaluations
+    aren't double counted) — kept in sync with it intentionally.
+    """
+    rows = db.execute(
+        select(func.unnest(Evaluation.error_categories).label("category"), func.count())
+        .join(Attempt, Attempt.active_evaluation_id == Evaluation.id)
+        .where(Attempt.user_id == user_id)
+        .group_by("category")
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+    return [{"category": category, "count": count} for category, count in rows]
+
+
+def _recent_feedback_for_category(
+    db: Session, user_id: uuid.UUID, category: str, limit: int
+) -> list[str]:
+    return list(
+        db.scalars(
+            select(Evaluation.feedback)
+            .join(Attempt, Attempt.active_evaluation_id == Evaluation.id)
+            .where(Attempt.user_id == user_id, Evaluation.error_categories.any(category))
+            .order_by(Attempt.created_at.desc())
+            .limit(limit)
+        ).all()
+    )
+
+
+def get_or_generate_weakness_profile(db: Session, engine: EvaluationEngine, user: User) -> dict:
+    """A user's weakest error categories plus AI-generated suggestions.
+
+    Suggestions are cached per user and only regenerated when the top-N
+    category *ranking* changes, not on every new attempt — see
+    statistics/models.py::UserWeaknessProfile.
+    """
+    categories = top_error_categories(db, user.id)
+    if not categories:
+        return {"has_enough_data": False, "weaknesses": [], "suggestions": []}
+
+    fingerprint = ",".join(sorted(c["category"] for c in categories))
+
+    cached = db.get(UserWeaknessProfile, user.id)
+    if cached is not None and cached.category_fingerprint == fingerprint:
+        suggestions = cached.suggestions
+    else:
+        context = [
+            WeaknessCategoryContext(
+                category=c["category"],
+                count=c["count"],
+                example_feedback=_recent_feedback_for_category(db, user.id, c["category"], limit=3),
+            )
+            for c in categories
+        ]
+        result = engine.generate_weakness_suggestions(
+            WeaknessSuggestionsRequest(categories=context)
+        )
+        suggestions = [
+            {"category": s.category, "explanation": s.explanation, "suggestion": s.suggestion}
+            for s in result.suggestions
+        ]
+
+        if cached is None:
+            cached = UserWeaknessProfile(user_id=user.id)
+        cached.category_fingerprint = fingerprint
+        cached.suggestions = suggestions
+        cached.model = result.model
+        cached.prompt_version = result.prompt_version
+        cached.generated_at = utcnow()
+        db.add(cached)
+
+        record_ai_usage(
+            db,
+            operation=AIOperation.WEAKNESS_SUGGESTIONS,
+            model=result.model,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            user_id=user.id,
+        )
+        db.commit()
+
+    return {"has_enough_data": True, "weaknesses": categories, "suggestions": suggestions}

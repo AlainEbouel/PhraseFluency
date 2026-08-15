@@ -79,3 +79,31 @@ class GrammarExplanationResult:
     prompt_version: str
     input_tokens: int
     output_tokens: int
+
+
+@dataclass(frozen=True)
+class WeaknessCategoryContext:
+    category: str
+    count: int
+    example_feedback: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class WeaknessSuggestionsRequest:
+    categories: list[WeaknessCategoryContext]
+
+
+@dataclass(frozen=True)
+class WeaknessSuggestion:
+    category: str
+    explanation: str
+    suggestion: str
+
+
+@dataclass(frozen=True)
+class WeaknessSuggestionsResult:
+    suggestions: list[WeaknessSuggestion]
+    model: str
+    prompt_version: str
+    input_tokens: int
+    output_tokens: int

@@ -1,17 +1,41 @@
 import uuid
 from datetime import timedelta
 
+from app.modules.evaluations.engine import EvaluationEngine
 from app.modules.evaluations.enums import AttemptMode, InputMethod, Verdict
 from app.modules.evaluations.models import Attempt, Evaluation
+from app.modules.evaluations.ports import WeaknessSuggestion, WeaknessSuggestionsResult
 from app.modules.learning.enums import TextProgressStatus
 from app.modules.learning.models import UserTextProgress
 from app.modules.statistics import service
+from app.modules.statistics.models import UserWeaknessProfile
 from app.modules.tests.models import Test, TestAttempt, TestAttemptStatus, TestText
 from app.modules.texts.models import Difficulty, ExerciseType, Text, TextVersion
 from app.modules.texts.service import get_or_create_pattern
 from app.modules.users.models import User, UserRole
 from app.shared.mixins import utcnow
 from app.shared.models import AIOperation, AIUsage
+
+
+class FakeEngine(EvaluationEngine):
+    def __init__(self, weakness_suggestions_result=None):
+        self.weakness_suggestions_result = weakness_suggestions_result
+        self.weakness_suggestions_calls = 0
+        self.last_request = None
+
+    def generate_reference(self, request):
+        raise NotImplementedError
+
+    def evaluate(self, request):
+        raise NotImplementedError
+
+    def generate_grammar_explanation(self, request):
+        raise NotImplementedError
+
+    def generate_weakness_suggestions(self, request):
+        self.weakness_suggestions_calls += 1
+        self.last_request = request
+        return self.weakness_suggestions_result
 
 
 def make_user(db_session) -> User:
@@ -359,3 +383,185 @@ class TestDetailedStatistics:
 
         assert stats_a["trend_all_time"]["attempts_count"] == 1
         assert stats_a["trend_all_time"]["natural_rate"] == 1.0
+
+
+class TestTopErrorCategories:
+    def test_ranks_by_count_descending(self, db_session):
+        user = make_user(db_session)
+        make_attempt(
+            db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER"],
+        )
+        make_attempt(
+            db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER", "REGISTER"],
+        )
+        make_attempt(
+            db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER"],
+        )
+
+        top = service.top_error_categories(db_session, user.id)
+
+        assert top[0] == {"category": "WORD_ORDER", "count": 3}
+        assert top[1] == {"category": "REGISTER", "count": 1}
+
+    def test_respects_the_limit(self, db_session):
+        user = make_user(db_session)
+        for category in ["WORD_ORDER", "REGISTER", "VERB_TENSE", "PREPOSITIONS"]:
+            make_attempt(
+                db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+                error_categories=[category],
+            )
+
+        top = service.top_error_categories(db_session, user.id, limit=2)
+
+        assert len(top) == 2
+
+    def test_no_tagged_evaluations_returns_empty(self, db_session):
+        user = make_user(db_session)
+        make_attempt(db_session, user, make_text_version(db_session), Verdict.CORRECT_NATURAL)
+
+        assert service.top_error_categories(db_session, user.id) == []
+
+    def test_scoped_to_the_requesting_user(self, db_session):
+        user_a = make_user(db_session)
+        user_b = make_user(db_session)
+        make_attempt(
+            db_session, user_a, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER"],
+        )
+        make_attempt(
+            db_session, user_b, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["REGISTER"],
+        )
+
+        top = service.top_error_categories(db_session, user_a.id)
+
+        assert top == [{"category": "WORD_ORDER", "count": 1}]
+
+
+class TestGetOrGenerateWeaknessProfile:
+    def test_insufficient_data_skips_the_llm_call(self, db_session):
+        user = make_user(db_session)
+        make_attempt(db_session, user, make_text_version(db_session), Verdict.CORRECT_NATURAL)
+        engine = FakeEngine()
+
+        profile = service.get_or_generate_weakness_profile(db_session, engine, user)
+
+        assert profile == {"has_enough_data": False, "weaknesses": [], "suggestions": []}
+        assert engine.weakness_suggestions_calls == 0
+
+    def test_generates_and_caches_suggestions(self, db_session):
+        user = make_user(db_session)
+        make_attempt(
+            db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER"],
+        )
+        engine = FakeEngine(
+            weakness_suggestions_result=WeaknessSuggestionsResult(
+                suggestions=[
+                    WeaknessSuggestion(
+                        category="WORD_ORDER", explanation="...", suggestion="..."
+                    )
+                ],
+                model="gpt-4o-mini",
+                prompt_version="weakness-v1",
+                input_tokens=10,
+                output_tokens=5,
+            )
+        )
+
+        profile = service.get_or_generate_weakness_profile(db_session, engine, user)
+
+        assert profile["has_enough_data"] is True
+        assert profile["weaknesses"] == [{"category": "WORD_ORDER", "count": 1}]
+        assert profile["suggestions"] == [
+            {"category": "WORD_ORDER", "explanation": "...", "suggestion": "..."}
+        ]
+        assert engine.weakness_suggestions_calls == 1
+        cached = db_session.get(UserWeaknessProfile, user.id)
+        assert cached is not None
+        assert cached.category_fingerprint == "WORD_ORDER"
+
+    def test_cache_hit_when_ranking_is_unchanged(self, db_session):
+        user = make_user(db_session)
+        make_attempt(
+            db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER"],
+        )
+        engine = FakeEngine(
+            weakness_suggestions_result=WeaknessSuggestionsResult(
+                suggestions=[WeaknessSuggestion("WORD_ORDER", "e1", "s1")],
+                model="gpt-4o-mini", prompt_version="weakness-v1",
+                input_tokens=10, output_tokens=5,
+            )
+        )
+        service.get_or_generate_weakness_profile(db_session, engine, user)
+
+        # A second, otherwise-identical-ranking attempt shouldn't change
+        # the fingerprint (still just WORD_ORDER as the sole category).
+        make_attempt(
+            db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER"],
+        )
+        profile = service.get_or_generate_weakness_profile(db_session, engine, user)
+
+        assert engine.weakness_suggestions_calls == 1  # not called again
+        assert profile["suggestions"] == [
+            {"category": "WORD_ORDER", "explanation": "e1", "suggestion": "s1"}
+        ]
+
+    def test_regenerates_when_the_top_categories_change(self, db_session):
+        user = make_user(db_session)
+        make_attempt(
+            db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER"],
+        )
+        engine = FakeEngine(
+            weakness_suggestions_result=WeaknessSuggestionsResult(
+                suggestions=[WeaknessSuggestion("WORD_ORDER", "e1", "s1")],
+                model="gpt-4o-mini", prompt_version="weakness-v1",
+                input_tokens=10, output_tokens=5,
+            )
+        )
+        service.get_or_generate_weakness_profile(db_session, engine, user)
+
+        # A brand new category takes over as the (sole) top category.
+        for _ in range(5):
+            make_attempt(
+                db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+                error_categories=["REGISTER"],
+            )
+        engine.weakness_suggestions_result = WeaknessSuggestionsResult(
+            suggestions=[
+                WeaknessSuggestion("REGISTER", "e2", "s2"),
+                WeaknessSuggestion("WORD_ORDER", "e1b", "s1b"),
+            ],
+            model="gpt-4o-mini", prompt_version="weakness-v1",
+            input_tokens=10, output_tokens=5,
+        )
+
+        profile = service.get_or_generate_weakness_profile(db_session, engine, user)
+
+        assert engine.weakness_suggestions_calls == 2
+        assert {s["category"] for s in profile["suggestions"]} == {"REGISTER", "WORD_ORDER"}
+
+    def test_grounds_the_request_in_recent_feedback_for_each_category(self, db_session):
+        user = make_user(db_session)
+        make_attempt(
+            db_session, user, make_text_version(db_session), Verdict.INCORRECT,
+            error_categories=["WORD_ORDER"],
+        )
+        engine = FakeEngine(
+            weakness_suggestions_result=WeaknessSuggestionsResult(
+                suggestions=[WeaknessSuggestion("WORD_ORDER", "e", "s")],
+                model="gpt-4o-mini", prompt_version="weakness-v1",
+                input_tokens=10, output_tokens=5,
+            )
+        )
+
+        service.get_or_generate_weakness_profile(db_session, engine, user)
+
+        assert engine.last_request.categories[0].category == "WORD_ORDER"
+        assert engine.last_request.categories[0].example_feedback == ["feedback"]

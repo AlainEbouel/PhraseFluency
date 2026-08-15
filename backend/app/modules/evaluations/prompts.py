@@ -8,11 +8,17 @@ references or historical evaluations.
 from __future__ import annotations
 
 from app.modules.evaluations.error_categories import ERROR_CATEGORIES
-from app.modules.evaluations.ports import EvaluationRequest, GrammarExplanationRequest, ReferenceGenerationRequest
+from app.modules.evaluations.ports import (
+    EvaluationRequest,
+    GrammarExplanationRequest,
+    ReferenceGenerationRequest,
+    WeaknessSuggestionsRequest,
+)
 
 REFERENCE_PROMPT_VERSION = "reference-v1"
 EVALUATION_PROMPT_VERSION = "evaluation-v2"
 EXPLANATION_PROMPT_VERSION = "explanation-v1"
+WEAKNESS_SUGGESTIONS_PROMPT_VERSION = "weakness-v1"
 
 REFERENCE_SYSTEM_PROMPT = """You are a linguistic content expert for PhraseFluency, an app that \
 teaches natural American English through French-to-English production practice.
@@ -145,3 +151,27 @@ def build_explanation_user_prompt(request: GrammarExplanationRequest) -> str:
         f"Preferred translation: {request.preferred_translation}"
         f"{answer_line}"
     )
+
+
+WEAKNESS_SUGGESTIONS_SYSTEM_PROMPT = """You are an encouraging but precise English-language \
+coach for PhraseFluency, a French-to-English production practice app. The learner's most \
+frequent error categories, each with a few real feedback snippets from their own recent \
+attempts, are provided below.
+
+For each category, in the order given: - write one short explanation (1-2 sentences) of the \
+pattern you see in their own examples, not a generic grammar-textbook definition; - write one \
+concrete, actionable suggestion they can apply next time they practice.
+
+Ground everything in the specific examples given — never write generic advice than could apply \
+to any learner. Keep the tone supportive, direct, and specific. Write in French, since this \
+app's interface is in French, addressing the learner as "tu"."""
+
+
+def build_weakness_suggestions_user_prompt(request: WeaknessSuggestionsRequest) -> str:
+    blocks = []
+    for ctx in request.categories:
+        examples = "\n".join(f"  - {fb}" for fb in ctx.example_feedback) or "  (no examples)"
+        blocks.append(
+            f"Category: {ctx.category} ({ctx.count} occurrence(s))\nRecent feedback:\n{examples}"
+        )
+    return "\n\n".join(blocks)

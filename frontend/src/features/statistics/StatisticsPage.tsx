@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { fetchDetailedStatistics } from "../../api/statistics";
-import type { DetailedStatistics } from "../../api/statistics";
+import { Lightbulb } from "lucide-react";
+import { fetchDetailedStatistics, fetchWeaknessProfile } from "../../api/statistics";
+import type { DetailedStatistics, WeaknessProfile } from "../../api/statistics";
 import { Meter } from "../../components/Meter";
+import { ERROR_CATEGORY_LABELS } from "../../constants/errorCategories";
+import { useContentFlash } from "../../hooks/useContentFlash";
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -27,6 +30,9 @@ const VERDICT_PILL: Record<string, string> = {
 export function StatisticsPage() {
   const [stats, setStats] = useState<DetailedStatistics | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [weaknessProfile, setWeaknessProfile] = useState<WeaknessProfile | null>(null);
+  const [weaknessError, setWeaknessError] = useState<string | null>(null);
+  const weaknessFlash = useContentFlash(weaknessProfile);
 
   useEffect(() => {
     fetchDetailedStatistics()
@@ -34,14 +40,60 @@ export function StatisticsPage() {
       .catch(() => setError("Impossible de charger les statistiques."));
   }, []);
 
+  useEffect(() => {
+    fetchWeaknessProfile()
+      .then(setWeaknessProfile)
+      .catch(() => setWeaknessError("Impossible de charger ton profil de faiblesses pour l'instant."));
+  }, []);
+
   if (error) return <p className="error-text">{error}</p>;
   if (!stats) return <p>Chargement...</p>;
+
+  const maxWeaknessCount = weaknessProfile?.weaknesses[0]?.count ?? 0;
 
   return (
     <div className="statistics-page">
       <div className="page-header">
         <h1>Statistiques détaillées</h1>
         <p className="page-subtitle">Votre historique d'apprentissage, en détail.</p>
+      </div>
+
+      <div className={`card${weaknessFlash ? " content-flash" : ""}`}>
+        <h2>Points faibles</h2>
+        {weaknessProfile === null && weaknessError === null && <p>Chargement...</p>}
+        {weaknessError && <p className="error-text">{weaknessError}</p>}
+        {weaknessProfile && !weaknessProfile.has_enough_data && (
+          <p className="empty-state">
+            Pas encore assez de réponses pour dresser ton profil de faiblesses. Continue à
+            t'exercer, il se construira au fur et à mesure.
+          </p>
+        )}
+        {weaknessProfile && weaknessProfile.has_enough_data && (
+          <>
+            <ul className="kv-list">
+              {weaknessProfile.weaknesses.map((w) => (
+                <li className="kv-row" key={w.category}>
+                  <span className="kv-row-label">
+                    {ERROR_CATEGORY_LABELS[w.category] ?? w.category}
+                  </span>
+                  <Meter value={w.count} max={maxWeaknessCount} tone="brand" />
+                  <span className="kv-row-value">{w.count}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="weakness-suggestions">
+              {weaknessProfile.suggestions.map((s) => (
+                <div className="weakness-suggestion-card" key={s.category}>
+                  <h3>{ERROR_CATEGORY_LABELS[s.category] ?? s.category}</h3>
+                  <p>{s.explanation}</p>
+                  <p className="weakness-suggestion-tip">
+                    <Lightbulb /> {s.suggestion}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="card">
