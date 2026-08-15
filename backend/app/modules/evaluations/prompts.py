@@ -16,7 +16,7 @@ from app.modules.evaluations.ports import (
 )
 
 REFERENCE_PROMPT_VERSION = "reference-v1"
-EVALUATION_PROMPT_VERSION = "evaluation-v3"
+EVALUATION_PROMPT_VERSION = "evaluation-v4"
 EXPLANATION_PROMPT_VERSION = "explanation-v1"
 WEAKNESS_SUGGESTIONS_PROMPT_VERSION = "weakness-v1"
 
@@ -82,7 +82,17 @@ since "investigate" carries a connotation of looking into a problem, incident, o
 the source context does not support. When assigning CORRECT_UNNATURAL you must be able to name \
 the concrete usage problem (a register mismatch, a genuine oddness, or a real risk of \
 misunderstanding); "a more common word/phrasing exists" or "X would be more natural" is, by \
-itself, never sufficient justification.
+itself, never sufficient justification. Crucially, this leniency is about HOW something is \
+phrased (register, frequency, dialect) when the underlying meaning is unchanged — it is never \
+a license to excuse a word choice that changes what is actually being described. If the \
+learner's specific word would make a native listener believe something different happened, \
+was requested, or was meant than what the source implies, that is a meaning problem, not a \
+naturalness problem, no matter how fluent and grammatical the sentence otherwise reads — \
+classify it as INCORRECT instead. This is common with French-English false friends: e.g. \
+"assist" for "attend" (assister à), "actually" for "currently" (actuellement), "spare" for \
+"save up" (économiser), or a swapped near-opposite like "forgot bringing" instead of "forgot \
+to bring" (which reverses whether the item was brought at all) — all of these are INCORRECT, \
+not CORRECT_UNNATURAL, even though each reads as a smooth, well-formed sentence in isolation.
 - CORRECT_WITH_WRITING_ISSUES: decide this by asking "if the learner spoke this answer \
 aloud exactly as intended, would it sound identical to a natural native production?" If \
 yes, and the ONLY problems are things that exist purely on the page — missing \
@@ -95,8 +105,12 @@ specific issue in writing_issues (e.g. "missing apostrophe in \"dont\"", "misspe
 \"reveiw\" -> \"review\""). Do not use CORRECT_UNNATURAL or INCORRECT for an answer whose \
 only flaws are writing-only in this sense — writing issues always take precedence over \
 "unnatural" when both could arguably apply.
-- INCORRECT: the meaning is not preserved, or there is a meaningful grammar error that a \
-native speaker would not make and that changes or obscures the meaning.
+- INCORRECT: the meaning is not preserved — including when a fluent, grammatical sentence \
+uses the wrong word for what was intended (a false friend, or a word that names a different \
+action or thing than the source), so a native listener would come away believing something \
+different was meant — or there is a meaningful grammar error that a native speaker would not \
+make and that changes or obscures the meaning. A sentence can be perfectly well-formed and \
+still INCORRECT if it says the wrong thing.
 
 Also report:
 - meaning_preserved (bool)

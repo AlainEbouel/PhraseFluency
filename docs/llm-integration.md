@@ -126,6 +126,23 @@ preferred choice:
 "A more common word/phrasing exists" is never sufficient justification
 by itself for `CORRECT_UNNATURAL`.
 
+This leniency is about *how* something is phrased (register, frequency,
+dialect) when the underlying meaning is unchanged — never a license to
+excuse a word choice that changes what is actually being described. If
+the learner's specific word would make a native listener believe
+something different happened, was requested, or was meant than what the
+source implies, that is a meaning problem (`INCORRECT`), not a
+naturalness problem, no matter how fluent and grammatical the sentence
+otherwise reads. This is common with French-English false friends —
+"assist" for "attend" (assister à), "actually" for "currently"
+(actuellement), "spare" for "save up" (économiser) — or a swapped
+near-opposite like "forgot bringing" instead of "forgot to bring"
+(reverses whether the item was brought at all). A sentence can be
+perfectly well-formed and still `INCORRECT` if it says the wrong thing
+(added after the first linguistic-benchmark run, `evaluation-v4`, found
+the model under-using `INCORRECT` for exactly this pattern — see
+docs/linguistic-benchmark.md).
+
 ## Writing-only standard
 
 Errors that would not appear as spoken-language errors may produce
@@ -181,6 +198,16 @@ Version independently where useful:
 -   chat/explanation prompt.
 
 Persist prompt version with outputs.
+
+## Determinism
+
+All structured-output calls use `temperature=0` (`OpenAIEvaluationEngine._parse`).
+Without it, the linguistic benchmark showed real run-to-run verdict flips on
+identical boundary-case inputs — the same learner answer re-evaluated could
+get a different verdict purely from sampling noise, not reconsideration.
+`temperature=0` is not a full determinism guarantee (the OpenAI API can still
+vary slightly at the infrastructure level) but sharply reduces it in
+practice.
 
 ## Caching
 

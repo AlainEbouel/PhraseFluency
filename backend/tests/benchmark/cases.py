@@ -7,8 +7,9 @@ are allowed to miss without failing the benchmark (see the module docstring
 in test_linguistic_benchmark.py for the acceptance gates).
 
 Coverage tags mirror the checklist in docs/linguistic-benchmark.md, plus two
-added this session to stress-test the evaluation-v3 acceptability-vs-
-optimality rule: "acceptability-not-optimality" and "regional-variant".
+added this session to stress-test the acceptability-vs-optimality rule
+introduced in evaluation-v3 and refined in evaluation-v4:
+"acceptability-not-optimality" and "regional-variant".
 """
 
 from __future__ import annotations

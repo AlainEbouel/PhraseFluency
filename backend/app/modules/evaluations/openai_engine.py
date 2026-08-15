@@ -164,7 +164,9 @@ class OpenAIEvaluationEngine(EvaluationEngine):
             output_tokens=completion.usage.completion_tokens if completion.usage else 0,
         )
 
-    def _parse(self, *, system_prompt: str, user_prompt: str, schema: type[BaseModel]):
+    def _parse(
+        self, *, system_prompt: str, user_prompt: str, schema: type[BaseModel], temperature: float = 0.0
+    ):
         try:
             return self._client.beta.chat.completions.parse(
                 model=self._model,
@@ -173,6 +175,7 @@ class OpenAIEvaluationEngine(EvaluationEngine):
                     {"role": "user", "content": user_prompt},
                 ],
                 response_format=schema,
+                temperature=temperature,
             )
         except OpenAIError as exc:
             # Covers timeouts, connection/rate-limit/server errors, and the
