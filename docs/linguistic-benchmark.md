@@ -69,5 +69,15 @@ If failures are systematic:
 5.  rerun full benchmark;
 6.  reject changes that introduce unacceptable regressions.
 
-The benchmark is an automated backend test suite and must run when the
-evaluation prompt/model changes.
+The benchmark is an automated backend test suite
+(`backend/tests/benchmark/`) and must run when the evaluation prompt/model
+changes:
+
+    pytest -m benchmark tests/benchmark -q -s
+
+It is excluded from the normal `pytest`/`pytest tests/` run (see the
+`benchmark` marker and `addopts` in `backend/pytest.ini`) since it calls the
+real OpenAI API — it costs money and takes a few minutes. Every run writes a
+full per-case report to `backend/tests/benchmark/reports/latest.txt`
+regardless of pass/fail, for the failure-category analysis in step 1 above.
+Cases and their expected verdicts live in `backend/tests/benchmark/cases.py`.
