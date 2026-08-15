@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   LogOut,
   MessageCircle,
+  Settings,
   ShieldCheck,
   User,
 } from "lucide-react";
@@ -40,6 +41,9 @@ export function AppLayout() {
             <ShieldCheck /> Admin
           </NavLink>
         )}
+        <NavLink to="/settings" className="app-nav-link">
+          <Settings /> Réglages
+        </NavLink>
         <div className="app-nav-spacer" />
         <span className="app-nav-user">
           <User size={14} /> {user?.email}

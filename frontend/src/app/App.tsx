@@ -6,6 +6,7 @@ import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 import { AdminPage } from "../features/admin/AdminPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { LearningPage } from "../features/learning/LearningPage";
+import { SettingsPage } from "../features/settings/SettingsPage";
 import { StatisticsPage } from "../features/statistics/StatisticsPage";
 import { TestsPage } from "../features/tests/TestsPage";
 import { AppLayout } from "./AppLayout";
@@ -28,6 +29,7 @@ export function App() {
             <Route path="learn" element={<LearningPage />} />
             <Route path="tests" element={<TestsPage />} />
             <Route path="statistics" element={<StatisticsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
             <Route
               path="admin"
               element={

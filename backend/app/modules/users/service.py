@@ -34,6 +34,22 @@ def set_user_active(
     return user
 
 
+def update_preferences(db: Session, user_id: uuid.UUID, updates: dict) -> User:
+    user = db.get(User, user_id)
+    if user is None:
+        raise ValueError("User not found")
+    merged = {**user.preferences, **updates}
+    translation_enabled = merged.get("translation_enabled", True)
+    dictation_enabled = merged.get("dictation_enabled", False)
+    if not translation_enabled and not dictation_enabled:
+        raise ValueError("At least one exercise mode must stay enabled")
+    user.preferences = merged
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def bootstrap_admin(db: Session, email: str, password: str) -> User:
     existing = get_user_by_email(db, email)
     if existing is not None:

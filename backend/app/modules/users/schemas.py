@@ -21,3 +21,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: UserRole = UserRole.USER
+
+
+class PreferencesIn(BaseModel):
+    translation_enabled: bool | None = None
+    dictation_enabled: bool | None = None
+    sound_effects_enabled: bool | None = None

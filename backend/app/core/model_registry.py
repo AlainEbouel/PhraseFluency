@@ -1,6 +1,7 @@
 from app.core.database import Base
 from app.modules.auth import models as auth_models  # noqa: F401
 from app.modules.conversations import models as conversations_models  # noqa: F401
+from app.modules.dictation import models as dictation_models  # noqa: F401
 from app.modules.evaluations import models as evaluations_models  # noqa: F401
 from app.modules.imports import models as imports_models  # noqa: F401
 from app.modules.audio import models as audio_models  # noqa: F401

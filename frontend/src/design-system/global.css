@@ -1617,3 +1617,12 @@ button {
   justify-content: flex-end;
   gap: var(--space-3);
 }
+
+/* ---------- Settings ---------- */
+
+.settings-toggle input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--brand);
+}

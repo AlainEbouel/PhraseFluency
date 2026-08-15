@@ -12,10 +12,12 @@ from app.modules.admin.router import router as admin_router
 from app.modules.audio.router import router as audio_router
 from app.modules.auth.router import router as auth_router
 from app.modules.conversations.router import router as conversations_router
+from app.modules.dictation.router import router as dictation_router
 from app.modules.imports.router import router as imports_router
 from app.modules.learning.router import router as learning_router
 from app.modules.statistics.router import router as statistics_router
 from app.modules.tests.router import router as tests_router
+from app.modules.users.router import router as users_router
 from app.modules.users.service import bootstrap_admin
 
 logging.basicConfig(level=logging.INFO)
@@ -51,10 +53,12 @@ app.include_router(auth_router)
 app.include_router(imports_router)
 app.include_router(learning_router)
 app.include_router(tests_router)
+app.include_router(dictation_router)
 app.include_router(conversations_router)
 app.include_router(audio_router)
 app.include_router(statistics_router)
 app.include_router(admin_router)
+app.include_router(users_router)
 
 
 @app.get("/health")

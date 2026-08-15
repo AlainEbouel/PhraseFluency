@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { alternativeAudioUrl, preferredAudioUrl } from "../../api/audio";
+import { fetchNextDictation, submitDictationAnswer } from "../../api/dictation";
+import type { DictationExercise, DictationSubmitResult } from "../../api/dictation";
 import {
   chooseLevel,
   exploreAlternative,
@@ -27,10 +29,22 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Meter } from "../../components/Meter";
 import { VerdictBadge } from "../../components/VerdictBadge";
 import { ChatPanel } from "../conversations/ChatPanel";
+import { useAuth } from "../auth/AuthContext";
 import { useAudioRecorder } from "../../hooks/useAudioRecorder";
 import { useContentFlash } from "../../hooks/useContentFlash";
 import { useSoundEffects } from "../../hooks/useSoundEffects";
 import { DIFFICULTY_LABELS, DIFFICULTY_PILL } from "../../constants/difficulty";
+
+type ExerciseKind = "translation" | "dictation";
+
+function pickExerciseKind(preferences: Record<string, unknown> | undefined): ExerciseKind {
+  const translationEnabled = preferences?.translation_enabled !== false;
+  const dictationEnabled = preferences?.dictation_enabled === true;
+  if (translationEnabled && dictationEnabled) {
+    return Math.random() < 0.5 ? "translation" : "dictation";
+  }
+  return dictationEnabled ? "dictation" : "translation";
+}
 
 const SELECTABLE_LEVELS: Difficulty[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
@@ -68,6 +82,13 @@ export function LearningPage() {
   const [isChoosingLevel, setIsChoosingLevel] = useState(false);
   const [levelError, setLevelError] = useState<string | null>(null);
   const [showAcquireConfirm, setShowAcquireConfirm] = useState(false);
+  const [exerciseKind, setExerciseKind] = useState<ExerciseKind>("translation");
+  const [dictationExercise, setDictationExercise] = useState<DictationExercise | null>(null);
+  const [dictationTranscript, setDictationTranscript] = useState("");
+  const [dictationResult, setDictationResult] = useState<DictationSubmitResult | null>(null);
+  const [isDictationSubmitting, setIsDictationSubmitting] = useState(false);
+  const [dictationError, setDictationError] = useState<string | null>(null);
+  const { user } = useAuth();
   const draftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const explanationRef = useRef<HTMLDivElement | null>(null);
   const chatRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +96,7 @@ export function LearningPage() {
   const feedbackFlash = useContentFlash(feedback);
   const pendingResultFlash = useContentFlash(pendingResult);
   const exploreResultFlash = useContentFlash(exploreResult);
+  const dictationResultFlash = useContentFlash(dictationResult);
   const { playSound } = useSoundEffects();
 
   useEffect(() => {
@@ -102,6 +124,28 @@ export function LearningPage() {
     setExploreInput("");
     setExploreResult(null);
     setExploreError(null);
+    setDictationTranscript("");
+    setDictationResult(null);
+    setDictationError(null);
+
+    const kind = pickExerciseKind(user?.preferences);
+    setExerciseKind(kind);
+
+    if (kind === "dictation") {
+      fetchNextDictation()
+        .then((result) => {
+          if ("available" in result && result.available === false) {
+            setNoExerciseMessage(result.message);
+            setPhase("no-exercise");
+            return;
+          }
+          setDictationExercise(result as DictationExercise);
+          setPhase("answering");
+        })
+        .catch(() => setPhase("load-error"));
+      return;
+    }
+
     fetchNextExercise()
       .then((result) => {
         if ("requires_level_selection" in result) {
@@ -121,7 +165,7 @@ export function LearningPage() {
         setPhase("answering");
       })
       .catch(() => setPhase("load-error"));
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadNext();
@@ -217,6 +261,37 @@ export function LearningPage() {
 
   function handleFinalize() {
     return performSubmit(true);
+  }
+
+  async function handleDictationSubmit() {
+    if (!dictationExercise || !dictationTranscript.trim()) return;
+    setIsDictationSubmitting(true);
+    setDictationError(null);
+    try {
+      const submissionId = crypto.randomUUID();
+      const result = await submitDictationAnswer(
+        dictationExercise.text_id,
+        dictationTranscript,
+        submissionId
+      );
+      playSound(
+        result.verdict === "CORRECT_NATURAL"
+          ? "natural"
+          : result.verdict === "INCORRECT"
+            ? "incorrect"
+            : "unnatural"
+      );
+      setDictationResult(result);
+      setPhase("feedback");
+    } catch (err) {
+      setDictationError(
+        err instanceof ApiError
+          ? err.message
+          : "L'évaluation est temporairement indisponible. Réessayez."
+      );
+    } finally {
+      setIsDictationSubmitting(false);
+    }
   }
 
   function handleRetryWritingIssue() {
@@ -364,6 +439,84 @@ export function LearningPage() {
 
   if (phase === "no-exercise") {
     return <p>{noExerciseMessage}</p>;
+  }
+
+  if (exerciseKind === "dictation") {
+    if (!dictationExercise && phase !== "feedback") return null;
+
+    return (
+      <div className={`learning-screen${phase === "feedback" ? " learning-screen-wide" : ""}`}>
+        <h2 className="french-text">🎧 Compréhension orale</h2>
+
+        {phase === "answering" && dictationExercise && (
+          <div className="exercise-panel">
+            <p className="explore-hint">
+              Écoute la phrase et transcris-la exactement, avec la bonne orthographe.
+            </p>
+            <AudioButton src={preferredAudioUrl(dictationExercise.text_id)} label="la phrase" />
+
+            <textarea
+              className="answer-input"
+              value={dictationTranscript}
+              onChange={(e) => setDictationTranscript(e.target.value)}
+              placeholder="Ce que tu as entendu..."
+              rows={3}
+            />
+
+            <div className="exercise-actions">
+              <button type="button" onClick={loadNext}>
+                Passer
+              </button>
+            </div>
+
+            {dictationError && (
+              <p className="error-text">
+                {dictationError}{" "}
+                <button type="button" onClick={handleDictationSubmit}>
+                  Réessayer
+                </button>
+              </p>
+            )}
+
+            <button
+              type="button"
+              className="primary-button submit-button"
+              onClick={handleDictationSubmit}
+              disabled={isDictationSubmitting || !dictationTranscript.trim()}
+            >
+              {isDictationSubmitting ? "Évaluation..." : "Soumettre"}
+            </button>
+          </div>
+        )}
+
+        {phase === "feedback" && dictationResult && (
+          <div className={`feedback-panel${dictationResultFlash ? " content-flash" : ""}`}>
+            <div className="feedback-badges">
+              <VerdictBadge verdict={dictationResult.verdict} />
+            </div>
+
+            <div className="your-answer-block">
+              <span className="your-answer-label">Ta transcription</span>
+              <p className="your-answer-text">{dictationTranscript}</p>
+            </div>
+
+            <p className="feedback-text">{dictationResult.feedback}</p>
+
+            {dictationResult.corrected_answer && (
+              <p className="corrected-answer">
+                Transcription exacte : <strong>{dictationResult.corrected_answer}</strong>
+              </p>
+            )}
+
+            <div className="feedback-actions">
+              <button type="button" className="primary-button" onClick={loadNext}>
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (!exercise) return null;
