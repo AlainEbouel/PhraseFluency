@@ -260,12 +260,28 @@ export function LearningPage() {
     if (!exercise) return;
     try {
       const result = await reevaluate(exercise.text_id);
-      setFeedback((prev) =>
-        prev
-          ? { ...prev, verdict: result.verdict as SubmitResult["verdict"], feedback: result.feedback, corrected_answer: result.corrected_answer }
-          : prev
-      );
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const applyResult = () => {
+        setFeedback((prev) =>
+          prev
+            ? {
+                ...prev,
+                verdict: result.verdict as SubmitResult["verdict"],
+                feedback: result.feedback,
+                corrected_answer: result.corrected_answer,
+              }
+            : prev
+        );
+      };
+      // Scrolling and the content-flash animation both signal "this is new" —
+      // running them at the same time makes the flash fade out mid-scroll,
+      // where it's barely noticeable. Scroll first, flash once the view is
+      // settled (skip the wait entirely if we're already near the top).
+      if (window.scrollY > 40) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setTimeout(applyResult, 400);
+      } else {
+        applyResult();
+      }
     } catch {
       setSubmitError("La réévaluation a échoué. Réessayez.");
     }
@@ -567,6 +583,8 @@ export function LearningPage() {
               </button>
             </div>
 
+            {repetitionMessage && <p className="success-text">{repetitionMessage}</p>}
+
             {showAcquireConfirm && (
               <ConfirmDialog
                 title="Marquer ce texte comme acquis ?"
@@ -579,8 +597,6 @@ export function LearningPage() {
           </div>
 
           <div className="feedback-sidebar">
-            {repetitionMessage && <p className="success-text">{repetitionMessage}</p>}
-
             {explanation && (
               <div className="card explanation-card" ref={explanationRef}>
                 <span className="reference-heading">Pourquoi ?</span>
