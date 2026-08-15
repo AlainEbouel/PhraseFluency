@@ -11,6 +11,7 @@ import type { TestDetail, TestSubmitResult, TestSummary } from "../../api/tests"
 import { VerdictBadge } from "../../components/VerdictBadge";
 import { DIFFICULTY_LABELS, DIFFICULTY_PILL } from "../../constants/difficulty";
 import { useContentFlash } from "../../hooks/useContentFlash";
+import { useSoundEffects } from "../../hooks/useSoundEffects";
 
 const STATUS_LABELS: Record<string, string> = {
   AVAILABLE: "Disponible",
@@ -86,6 +87,7 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const feedbackFlash = useContentFlash(feedback);
+  const { playSound } = useSoundEffects();
 
   function reload() {
     fetchTestDetail(testId).then(setDetail).catch(() => setError("Impossible de charger le test."));
@@ -111,6 +113,13 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
     setError(null);
     try {
       const result = await submitTestAnswer(testId, currentTextId, answer, crypto.randomUUID());
+      playSound(
+        result.verdict === "CORRECT_NATURAL"
+          ? "natural"
+          : result.verdict === "INCORRECT"
+            ? "incorrect"
+            : "unnatural"
+      );
       setSubmittedAnswer(answer);
       setFeedback(result);
       setAnswer("");

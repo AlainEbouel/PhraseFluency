@@ -29,6 +29,7 @@ import { VerdictBadge } from "../../components/VerdictBadge";
 import { ChatPanel } from "../conversations/ChatPanel";
 import { useAudioRecorder } from "../../hooks/useAudioRecorder";
 import { useContentFlash } from "../../hooks/useContentFlash";
+import { useSoundEffects } from "../../hooks/useSoundEffects";
 import { DIFFICULTY_LABELS, DIFFICULTY_PILL } from "../../constants/difficulty";
 
 const SELECTABLE_LEVELS: Difficulty[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -74,6 +75,7 @@ export function LearningPage() {
   const feedbackFlash = useContentFlash(feedback);
   const pendingResultFlash = useContentFlash(pendingResult);
   const exploreResultFlash = useContentFlash(exploreResult);
+  const { playSound } = useSoundEffects();
 
   useEffect(() => {
     if (explanation) {
@@ -177,12 +179,20 @@ export function LearningPage() {
       });
       setSubmittedAnswer(draft);
       if (result.committed) {
+        playSound(
+          result.verdict === "CORRECT_NATURAL"
+            ? "natural"
+            : result.verdict === "INCORRECT"
+              ? "incorrect"
+              : "unnatural"
+        );
         setFeedback(result);
         setPendingResult(null);
         setHintsDisabledForRetry(false);
         setUnnaturalRetryUsed(false);
         setPhase("feedback");
       } else {
+        playSound("pending");
         setPendingResult(result);
         setPhase(
           result.verdict === "CORRECT_WITH_WRITING_ISSUES"
