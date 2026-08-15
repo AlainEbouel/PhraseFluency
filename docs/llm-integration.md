@@ -81,22 +81,50 @@ The backend maps verdicts to points.
 
 ## Naturalness standard
 
+The governing question for `CORRECT_NATURAL` vs. `CORRECT_UNNATURAL` is
+acceptability, not optimality: not "is this the single most natural way
+to say it?" but "is this a normally acceptable way to say it in
+American English in this context, without notable oddness or
+problematic ambiguity?" The burden of proof is on `CORRECT_UNNATURAL`;
+when genuinely unsure, choose `CORRECT_NATURAL`.
+
 `CORRECT_NATURAL` requires:
 
 -   meaning preserved;
 -   no meaningful spoken grammar error;
--   formulation a native American English speaker could naturally use in
-    context;
--   appropriate register;
+-   formulation a native American English speaker could normally,
+    acceptably use in context;
 -   no awkward literal French translation;
--   not unnecessarily formal;
 -   contractions accepted/preferred when natural.
 
-Do not downgrade an answer merely because another wording is preferred.
+This is the default verdict. A wording being less frequent, more
+formal/informal, or simply not the reference/preferred translation is
+never on its own a reason to downgrade (e.g. "check" vs. "verify",
+"start" vs. "begin", "I think" vs. "I believe" are all
+`CORRECT_NATURAL`). The same applies across regional varieties: a
+formulation characteristic of British (or other) English that is
+widely understood and normally used in American contexts, with no
+resulting ambiguity, is still `CORRECT_NATURAL` — at most an
+informative aside in feedback ("Correct. More typical of British
+English; in American English, 'X' is more common."), never a
+deduction.
 
-`CORRECT_UNNATURAL` is reserved for wording that is understandable and
-substantially correct but genuinely stiff, literal, unusual, or unlikely
-in normal American usage.
+`CORRECT_UNNATURAL` is reserved for wording that is grammatically
+acceptable and understandable but has a genuine, nameable usage
+problem in this specific context — not merely a less frequent or less
+preferred choice:
+
+-   a substantially mismatched/inappropriate register for the
+    situation; or
+-   genuine oddness to a native ear in this specific situation, beyond
+    being merely less common; or
+-   a real risk that a listener would understand something importantly
+    different from what the learner intended (e.g. "I'll investigate
+    it" for an intended "I'll check" — "investigate" implies looking
+    into a problem/incident, which the context doesn't support).
+
+"A more common word/phrasing exists" is never sufficient justification
+by itself for `CORRECT_UNNATURAL`.
 
 ## Writing-only standard
 
