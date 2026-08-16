@@ -16,7 +16,7 @@ from app.modules.evaluations.ports import (
 )
 
 REFERENCE_PROMPT_VERSION = "reference-v1"
-EVALUATION_PROMPT_VERSION = "evaluation-v4"
+EVALUATION_PROMPT_VERSION = "evaluation-v5"
 EXPLANATION_PROMPT_VERSION = "explanation-v1"
 WEAKNESS_SUGGESTIONS_PROMPT_VERSION = "weakness-v1"
 
@@ -68,7 +68,15 @@ speech, both are normally acceptable. The same applies across regional varieties
 formulation that is characteristic of British (or other) English but is widely understood and \
 normally used in American contexts, with no resulting ambiguity, is still CORRECT_NATURAL — at \
 most mention the regional contrast as an informative aside in feedback (e.g. "Correct. More \
-typical of British English; in American English, 'X' is more common."), never as a deduction.
+typical of British English; in American English, 'X' is more common."), never as a deduction. \
+This covers structural paraphrase just as much as single-word swaps — do not reserve the \
+leniency for simple synonym substitution only. A modal-verb rephrasing ("Would you be able to \
+help me with that?" for "Could you help me with that?"), omitting an article/determiner where \
+doing so is idiomatically optional ("He plays piano" alongside "He plays the piano"), and a \
+contraction combined with a future form ("I don't think he'll come") are each still \
+CORRECT_NATURAL for the same reason: none of them change what actually happened, was \
+requested, or was meant — they are simply a different, equally native way to say the same \
+thing, exactly like the synonym-swap cases above.
 - CORRECT_UNNATURAL: grammatically acceptable and understandable, but there is a genuine usage \
 problem specific to this context — not merely a less frequent or less preferred choice. Reserve \
 this verdict for a formulation that does at least one of the following: (a) belongs to a \
@@ -92,7 +100,17 @@ classify it as INCORRECT instead. This is common with French-English false frien
 "assist" for "attend" (assister à), "actually" for "currently" (actuellement), "spare" for \
 "save up" (économiser), or a swapped near-opposite like "forgot bringing" instead of "forgot \
 to bring" (which reverses whether the item was brought at all) — all of these are INCORRECT, \
-not CORRECT_UNNATURAL, even though each reads as a smooth, well-formed sentence in isolation.
+not CORRECT_UNNATURAL, even though each reads as a smooth, well-formed sentence in isolation. \
+The reverse calibration matters just as much: a formulation that reads as an odd, stiff, or \
+literal-sounding translation but that a native listener would still readily understand AS \
+INTENDED — without walking away believing a materially different fact — stays CORRECT_UNNATURAL, \
+not INCORRECT. The bar for INCORRECT is that the meaning is actually lost, reversed, or \
+replaced by a different practical fact (a different deadline, a different action, a different \
+person) — not merely that the phrasing sounds foreign, awkward, or overly literal. For example, \
+using "until Friday" where "by Friday" was meant changes a one-time deadline into an ongoing \
+state and is INCORRECT (a materially different practical fact), whereas an odd-sounding literal \
+calque that a listener could still readily decode (e.g. a stilted but comprehensible phrase for \
+"I don't care either way") stays CORRECT_UNNATURAL.
 - CORRECT_WITH_WRITING_ISSUES: decide this by asking "if the learner spoke this answer \
 aloud exactly as intended, would it sound identical to a natural native production?" If \
 yes, and the ONLY problems are things that exist purely on the page — missing \

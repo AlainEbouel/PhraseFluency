@@ -8,7 +8,7 @@ in test_linguistic_benchmark.py for the acceptance gates).
 
 Coverage tags mirror the checklist in docs/linguistic-benchmark.md, plus two
 added this session to stress-test the acceptability-vs-optimality rule
-introduced in evaluation-v3 and refined in evaluation-v4:
+introduced in evaluation-v3 and refined in evaluation-v4/v5:
 "acceptability-not-optimality" and "regional-variant".
 """
 

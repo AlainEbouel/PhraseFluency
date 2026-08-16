@@ -109,6 +109,16 @@ informative aside in feedback ("Correct. More typical of British
 English; in American English, 'X' is more common."), never a
 deduction.
 
+This covers structural paraphrase, not just single-word synonym swaps:
+a modal-verb rephrasing ("Would you be able to help me with that?" for
+"Could you help me with that?"), omitting an article/determiner where
+idiomatically optional ("He plays piano" alongside "He plays the
+piano"), and a contraction combined with a future form ("I don't think
+he'll come") are all still `CORRECT_NATURAL` for the same reason —
+none of them change what happened, was requested, or was meant (added
+in `evaluation-v5` after the benchmark showed these generalizing worse
+than plain synonym swaps).
+
 `CORRECT_UNNATURAL` is reserved for wording that is grammatically
 acceptable and understandable but has a genuine, nameable usage
 problem in this specific context — not merely a less frequent or less
@@ -142,6 +152,19 @@ perfectly well-formed and still `INCORRECT` if it says the wrong thing
 (added after the first linguistic-benchmark run, `evaluation-v4`, found
 the model under-using `INCORRECT` for exactly this pattern — see
 docs/linguistic-benchmark.md).
+
+The calibration runs both ways: a formulation that reads as odd, stiff,
+or literal-sounding but that a native listener would still readily
+understand *as intended* — without walking away believing a materially
+different fact — stays `CORRECT_UNNATURAL`, not `INCORRECT`. The bar
+for `INCORRECT` is that the meaning is actually lost, reversed, or
+replaced by a different practical fact (a different deadline, a
+different action, a different person) — not merely that the phrasing
+sounds foreign or overly literal. E.g. "until Friday" for an intended
+"by Friday" changes a one-time deadline into an ongoing state and is
+`INCORRECT`; a stilted-but-decodable literal calque stays
+`CORRECT_UNNATURAL` (added in `evaluation-v5`, alongside the structural-
+paraphrase clarification above).
 
 ## Writing-only standard
 
