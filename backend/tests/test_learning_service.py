@@ -315,6 +315,40 @@ class TestUpdateLevelSettings:
 
 
 class TestRebalanceActiveBank:
+    def test_fully_evicts_a_tier_left_over_from_a_previous_target(self, db_session):
+        # Mirrors a real production bug: a user whose bank was built under
+        # the old 3-tier system (current/next/two-up) had B1/B2/C1 all
+        # active. Switching target from C1 to B2 makes C1 an "orphaned"
+        # tier — not one of the two new weighted tiers at all — which must
+        # be fully evicted, not silently left active forever.
+        user = make_user_without_level(db_session)
+        for _ in range(50):
+            make_text(db_session, difficulty=Difficulty.B1)
+        for _ in range(100):
+            make_text(db_session, difficulty=Difficulty.B2)
+        for _ in range(15):
+            make_text(db_session, difficulty=Difficulty.C1)
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B1
+        learning_state.target_level = Difficulty.C1
+        learning_state.current_level_share = 0.15
+        db_session.commit()
+        service.activate_up_to_bank_target(db_session, user.id, target=100)
+        assert _active_counts_by_difficulty(db_session, user.id).get(Difficulty.C1, 0) > 0
+
+        # Now the user switches their target from C1 to B2.
+        learning_state.target_level = Difficulty.B2
+        learning_state.current_level_share = 0.25
+        db_session.commit()
+        service.rebalance_active_bank(db_session, user.id)
+        db_session.commit()
+
+        counts_after = _active_counts_by_difficulty(db_session, user.id)
+        assert counts_after.get(Difficulty.C1, 0) == 0
+        assert set(counts_after) == {Difficulty.B1, Difficulty.B2}
+        # Total bank size is preserved — C1's slots moved to B1/B2, not lost.
+        assert sum(counts_after.values()) == 100
+
     def test_evicts_excess_and_backfills_deficient_tier(self, db_session):
         user = make_user_without_level(db_session)
         for _ in range(10):

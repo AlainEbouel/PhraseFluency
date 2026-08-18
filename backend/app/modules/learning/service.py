@@ -370,7 +370,12 @@ def rebalance_active_bank(db: Session, user_id: uuid.UUID) -> None:
         learning_state.current_level, learning_state.target_level, learning_state.current_level_share
     )
     active_counts = _active_counts_by_difficulty(db, user_id)
-    total_active = sum(active_counts.get(level, 0) for level in weights)
+    # The total includes EVERY currently active difficulty, not just the
+    # two weighted ones — a difficulty left over from a previous
+    # current/target pair (e.g. C1 after switching from a B1/C1 split to
+    # B1/B2) is not one of the weighted tiers anymore and must be fully
+    # evicted, not silently left active forever.
+    total_active = sum(active_counts.values())
     if total_active == 0:
         return
 
@@ -385,9 +390,9 @@ def rebalance_active_bank(db: Session, user_id: uuid.UUID) -> None:
     protected_text_id = learning_state.current_text_id
 
     over = {
-        level: active_counts.get(level, 0) - target_counts[level]
-        for level in tiers
-        if active_counts.get(level, 0) > target_counts[level]
+        level: active_counts[level] - target_counts.get(level, 0)
+        for level in active_counts
+        if active_counts[level] > target_counts.get(level, 0)
     }
     under = {
         level: target_counts[level] - active_counts.get(level, 0)
