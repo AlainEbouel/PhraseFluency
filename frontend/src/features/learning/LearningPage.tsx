@@ -27,6 +27,7 @@ import type {
 } from "../../types/learning";
 import { AudioButton } from "../../components/AudioButton";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { CopyButton } from "../../components/CopyButton";
 import { Meter } from "../../components/Meter";
 import { VerdictBadge } from "../../components/VerdictBadge";
 import { ChatPanel } from "../conversations/ChatPanel";
@@ -55,7 +56,7 @@ type Phase =
   | "no-exercise"
   | "answering"
   | "pending-writing-issue"
-  | "pending-unnatural-offer"
+  | "pending-retry-offer"
   | "feedback"
   | "load-error";
 
@@ -75,7 +76,7 @@ export function LearningPage() {
   const [noExerciseMessage, setNoExerciseMessage] = useState("");
   const [repetitionMessage, setRepetitionMessage] = useState<string | null>(null);
   const [hintsDisabledForRetry, setHintsDisabledForRetry] = useState(false);
-  const [unnaturalRetryUsed, setUnnaturalRetryUsed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [exploreInput, setExploreInput] = useState("");
   const [exploreResult, setExploreResult] = useState<ExploreResult | null>(null);
   const [isExploring, setIsExploring] = useState(false);
@@ -121,7 +122,7 @@ export function LearningPage() {
     setSubmitError(null);
     setRepetitionMessage(null);
     setHintsDisabledForRetry(false);
-    setUnnaturalRetryUsed(false);
+    setRetryCount(0);
     setExploreInput("");
     setExploreResult(null);
     setExploreError(null);
@@ -220,7 +221,7 @@ export function LearningPage() {
       const submissionId = crypto.randomUUID();
       const result = await submitAnswer(draft, inputMethod, submissionId, {
         finalize,
-        unnaturalRetryUsed,
+        retryCount,
       });
       setSubmittedAnswer(draft);
       if (result.committed) {
@@ -234,7 +235,7 @@ export function LearningPage() {
         setFeedback(result);
         setPendingResult(null);
         setHintsDisabledForRetry(false);
-        setUnnaturalRetryUsed(false);
+        setRetryCount(0);
         setPhase("feedback");
       } else {
         playSound("pending");
@@ -242,7 +243,7 @@ export function LearningPage() {
         setPhase(
           result.verdict === "CORRECT_WITH_WRITING_ISSUES"
             ? "pending-writing-issue"
-            : "pending-unnatural-offer"
+            : "pending-retry-offer"
         );
       }
     } catch (err) {
@@ -301,11 +302,13 @@ export function LearningPage() {
     setPhase("answering");
   }
 
-  function handleImproveUnnatural() {
+  function handleRetry() {
+    if (!pendingResult) return;
+    const next = retryCount + 1;
     setPendingResult(null);
     setSubmitError(null);
-    setHintsDisabledForRetry(true);
-    setUnnaturalRetryUsed(true);
+    setRetryCount(next);
+    setHintsDisabledForRetry(next >= 2 ? true : pendingResult.verdict === "CORRECT_UNNATURAL");
     setPhase("answering");
   }
 
@@ -605,7 +608,7 @@ export function LearningPage() {
         </div>
       )}
 
-      {(phase === "pending-writing-issue" || phase === "pending-unnatural-offer") &&
+      {(phase === "pending-writing-issue" || phase === "pending-retry-offer") &&
         pendingResult && (
           <div
             className={`feedback-panel pending-panel${pendingResultFlash ? " content-flash" : ""}`}
@@ -619,6 +622,13 @@ export function LearningPage() {
               <p className="your-answer-text">{submittedAnswer}</p>
             </div>
 
+            {phase === "pending-retry-offer" && (
+              <p className="feedback-text">
+                {pendingResult.verdict === "INCORRECT"
+                  ? "Ta réponse ne correspond pas encore au sens voulu."
+                  : "Ça se comprend, mais voici une formulation plus naturelle."}
+              </p>
+            )}
             <p className="feedback-text">{pendingResult.feedback}</p>
 
             {pendingResult.writing_issues.length > 0 && (
@@ -651,10 +661,10 @@ export function LearningPage() {
                   <button
                     type="button"
                     className="primary-button"
-                    onClick={handleImproveUnnatural}
+                    onClick={handleRetry}
                     disabled={isSubmitting}
                   >
-                    Améliorer ma réponse
+                    {pendingResult.verdict === "INCORRECT" ? "Réessayer" : "Améliorer ma réponse"}
                   </button>
                   <button type="button" onClick={handleFinalize} disabled={isSubmitting}>
                     Continuer sans changer
@@ -677,7 +687,9 @@ export function LearningPage() {
 
             <div className="your-answer-block">
               <span className="your-answer-label">Votre réponse</span>
-              <p className="your-answer-text">{submittedAnswer}</p>
+              <p className="your-answer-text">
+                {submittedAnswer} <CopyButton text={submittedAnswer} label="votre réponse" />
+              </p>
               <button type="button" className="reevaluate-button" onClick={handleReevaluate}>
                 Réévaluer
               </button>
@@ -689,6 +701,7 @@ export function LearningPage() {
             {feedback.corrected_answer && (
               <p className="corrected-answer">
                 Forme correcte : <strong>{feedback.corrected_answer}</strong>
+                <CopyButton text={feedback.corrected_answer} label="la forme correcte" />
                 {feedback.writing_issues.length > 0 && (
                   <span className="writing-issues-detail">
                     {" "}
@@ -701,6 +714,7 @@ export function LearningPage() {
             {feedback.usage_note_alternative && (
               <p className="usage-note">
                 <Lightbulb /> Astuce d'usage : <strong>{feedback.usage_note_alternative}</strong>
+                <CopyButton text={feedback.usage_note_alternative} label="la remarque d'usage" />
               </p>
             )}
 
@@ -708,6 +722,7 @@ export function LearningPage() {
             <div className="reference-block reference-block-preferred">
               <span>{feedback.preferred_translation}</span>
               <AudioButton src={preferredAudioUrl(exercise.text_id)} label={feedback.preferred_translation} />
+              <CopyButton text={feedback.preferred_translation} label="la traduction recommandée" />
             </div>
 
             {feedback.alternatives.length > 0 && (
@@ -717,6 +732,7 @@ export function LearningPage() {
               <div className="reference-block" key={i}>
                 <span>{alt}</span>
                 <AudioButton src={alternativeAudioUrl(exercise.text_id, i)} label={alt} />
+                <CopyButton text={alt} label="cette alternative" />
               </div>
             ))}
 
@@ -809,12 +825,14 @@ export function LearningPage() {
                   {exploreResult.corrected_answer && (
                     <p className="corrected-answer">
                       Forme correcte : <strong>{exploreResult.corrected_answer}</strong>
+                      <CopyButton text={exploreResult.corrected_answer} label="la forme correcte" />
                     </p>
                   )}
                   {exploreResult.usage_note_alternative && (
                     <p className="usage-note">
                       <Lightbulb /> Astuce d'usage :{" "}
                       <strong>{exploreResult.usage_note_alternative}</strong>
+                      <CopyButton text={exploreResult.usage_note_alternative} label="la remarque d'usage" />
                     </p>
                   )}
                 </div>

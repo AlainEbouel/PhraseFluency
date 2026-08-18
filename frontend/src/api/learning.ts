@@ -4,6 +4,8 @@ import type {
   Exercise,
   ExploreResult,
   LevelRequired,
+  LevelSettings,
+  LevelSettingsRejected,
   NoExerciseAvailable,
   PendingSubmitResult,
   Progress,
@@ -18,6 +20,22 @@ export function chooseLevel(level: Difficulty): Promise<void> {
   return apiRequest("/api/v1/learning/level", {
     method: "POST",
     body: JSON.stringify({ level }),
+  });
+}
+
+export function fetchLevelSettings(): Promise<LevelSettings> {
+  return apiRequest("/api/v1/learning/level-settings");
+}
+
+export function updateLevelSettings(
+  update: { targetLevel?: Difficulty; currentLevelShare?: number }
+): Promise<LevelSettings | LevelSettingsRejected> {
+  return apiRequest("/api/v1/learning/level-settings", {
+    method: "PATCH",
+    body: JSON.stringify({
+      target_level: update.targetLevel ?? null,
+      current_level_share: update.currentLevelShare ?? null,
+    }),
   });
 }
 
@@ -36,7 +54,7 @@ export function submitAnswer(
   userAnswer: string,
   inputMethod: "KEYBOARD" | "VOICE",
   submissionId: string,
-  options?: { finalize?: boolean; unnaturalRetryUsed?: boolean }
+  options?: { finalize?: boolean; retryCount?: number }
 ): Promise<SubmitResult | PendingSubmitResult> {
   return apiRequest("/api/v1/learning/submit", {
     method: "POST",
@@ -45,7 +63,7 @@ export function submitAnswer(
       input_method: inputMethod,
       submission_id: submissionId,
       finalize: options?.finalize ?? false,
-      unnatural_retry_used: options?.unnaturalRetryUsed ?? false,
+      retry_count: options?.retryCount ?? 0,
     }),
   });
 }

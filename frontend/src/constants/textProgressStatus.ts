@@ -6,6 +6,7 @@ export const TEXT_PROGRESS_STATUS_LABELS: Record<string, string> = {
   MASTERED: "Maîtrisé",
   MANUALLY_ACQUIRED: "Acquis manuellement",
   DISABLED: "Désactivé",
+  BENCHED: "En pause (niveau)",
 };
 
 export const TEXT_PROGRESS_STATUS_PILL: Record<string, string> = {
@@ -15,5 +16,6 @@ export const TEXT_PROGRESS_STATUS_PILL: Record<string, string> = {
   TEST_ASSIGNED: "pill-brand",
   WAITING_FOR_TEST_ASSIGNMENT: "pill-warning",
   DISABLED: "pill-critical",
+  BENCHED: "pill-warning",
   UNSEEN: "pill",
 };

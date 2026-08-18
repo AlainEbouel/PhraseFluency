@@ -5,7 +5,8 @@ export type TextProgressStatus =
   | "TEST_ASSIGNED"
   | "MASTERED"
   | "MANUALLY_ACQUIRED"
-  | "DISABLED";
+  | "DISABLED"
+  | "BENCHED";
 
 export type Verdict =
   | "CORRECT_NATURAL"
@@ -71,6 +72,19 @@ export interface PendingSubmitResult {
   feedback: string;
   writing_issues: string[];
   difficulty: Difficulty;
+}
+
+export interface LevelSettings {
+  accepted: true;
+  current_level: Difficulty | null;
+  target_level: Difficulty | null;
+  current_level_share: number;
+}
+
+export interface LevelSettingsRejected {
+  accepted: false;
+  message: string;
+  suggested_target_level: Difficulty;
 }
 
 export interface ExploreResult {

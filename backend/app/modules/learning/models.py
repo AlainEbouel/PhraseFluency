@@ -1,12 +1,13 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Text as TextColumn
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, Text as TextColumn
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.modules.learning.engine import (
+    DEFAULT_CURRENT_LEVEL_SHARE,
     DEFAULT_REQUIRED_NATURAL_EQUIVALENTS,
     DEFAULT_REQUIRED_SCORE,
 )
@@ -62,4 +63,8 @@ class UserLearningState(Base):
     current_level: Mapped[Difficulty | None] = mapped_column(
         Enum(Difficulty, name="difficulty"), default=None
     )
+    target_level: Mapped[Difficulty | None] = mapped_column(
+        Enum(Difficulty, name="difficulty"), default=None
+    )
+    current_level_share: Mapped[float] = mapped_column(Float, default=DEFAULT_CURRENT_LEVEL_SHARE)
     last_review_at_exercise: Mapped[int | None] = mapped_column(Integer, default=None)

@@ -17,6 +17,11 @@ IMPERFECT_POINTS = 1
 INCORRECT_POINTS = 0
 HINT_CAPPED_POINTS = 1
 
+# CORRECT_UNNATURAL/INCORRECT get up to this many "want to improve?" offers
+# before submit_answer commits the result unconditionally (product
+# decision) — writing-issue retries are unlimited and unaffected.
+MAX_RETRIES = 2
+
 DEFAULT_REQUIRED_NATURAL_EQUIVALENTS = 2
 DEFAULT_REQUIRED_SCORE = 4
 REPETITION_NATURAL_EQUIVALENT_INCREMENT = 1
@@ -36,7 +41,8 @@ CEFR_ORDER = [
     Difficulty.C1,
     Difficulty.C2,
 ]
-TIER_WEIGHTS = (0.15, 0.75, 0.10)  # current level, next level up, two up
+DEFAULT_CURRENT_LEVEL_SHARE = 0.25
+MAX_CURRENT_LEVEL_SHARE = 0.5
 
 _BASE_POINTS = {
     Verdict.CORRECT_NATURAL: NATURAL_POINTS,
@@ -189,19 +195,36 @@ def disable(progress: TextProgressState) -> TextProgressState:
     )
 
 
-def tier_weights(current_level: Difficulty) -> dict[Difficulty, float]:
-    """Target share of the active bank for the user's level and the two above.
+def bench(progress: TextProgressState) -> TextProgressState:
+    """Temporarily pull an ACTIVE text out of rotation for tier rebalancing.
 
-    Levels past C2 clamp to C2; when two tiers clamp to the same level
-    their weights merge (e.g. current=C1 -> {C1: 0.15, C2: 0.85};
-    current=C2 -> {C2: 1.0}).
+    Unlike disable(), this only changes status — mastery_score, counts,
+    next_review_at_exercise, and rotation_position are all untouched, so
+    reactivate() can resume exactly where the text left off.
     """
-    start = CEFR_ORDER.index(current_level)
-    weights: dict[Difficulty, float] = {}
-    for offset, weight in zip(range(3), TIER_WEIGHTS):
-        level = CEFR_ORDER[min(start + offset, len(CEFR_ORDER) - 1)]
-        weights[level] = weights.get(level, 0.0) + weight
-    return weights
+    return replace(progress, status=TextProgressStatus.BENCHED)
+
+
+def reactivate(progress: TextProgressState) -> TextProgressState:
+    """Undo bench(): resume with the exact same progress as before."""
+    return replace(progress, status=TextProgressStatus.ACTIVE)
+
+
+def tier_weights(
+    current_level: Difficulty,
+    target_level: Difficulty,
+    current_level_share: float = DEFAULT_CURRENT_LEVEL_SHARE,
+) -> dict[Difficulty, float]:
+    """Target share of the active bank for the current and target levels.
+
+    Two tiers only. Collapses to a single 100% tier when target_level
+    equals current_level (the escape hatch offered when
+    current_level_share would otherwise have to exceed
+    MAX_CURRENT_LEVEL_SHARE).
+    """
+    if target_level == current_level:
+        return {current_level: 1.0}
+    return {current_level: current_level_share, target_level: 1.0 - current_level_share}
 
 
 def prioritized_tiers(

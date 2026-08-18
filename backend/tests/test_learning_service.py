@@ -175,40 +175,43 @@ class TestLevelSelection:
             make_text(db_session, difficulty=Difficulty.B1)
         for _ in range(20):
             make_text(db_session, difficulty=Difficulty.B2)
-        for _ in range(20):
-            make_text(db_session, difficulty=Difficulty.C1)
-        service.get_or_create_learning_state(db_session, user.id).current_level = Difficulty.B1
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B1
+        learning_state.target_level = Difficulty.B2
         db_session.commit()
 
         activated = service.activate_up_to_bank_target(db_session, user.id, target=20)
 
         assert activated == 20
         counts = _active_counts_by_difficulty(db_session, user.id)
-        # tier_weights(B1) = {B1: 0.15, B2: 0.75, C1: 0.10} of 20 slots.
-        assert counts == {Difficulty.B1: 3, Difficulty.B2: 15, Difficulty.C1: 2}
+        # tier_weights(B1, B2) = {B1: 0.25, B2: 0.75} of 20 slots.
+        assert counts == {Difficulty.B1: 5, Difficulty.B2: 15}
 
     def test_a_dry_tier_falls_back_to_the_other_weighted_tiers(self, db_session):
         user = make_user_without_level(db_session)
         for _ in range(10):
             make_text(db_session, difficulty=Difficulty.B2)
-        for _ in range(10):
-            make_text(db_session, difficulty=Difficulty.C1)
-        # No C2 texts at all: tier_weights(B2) = {B2: 0.15, C1: 0.75, C2: 0.10},
-        # so every time C2 is prioritized it must fall through to B2/C1.
-        service.get_or_create_learning_state(db_session, user.id).current_level = Difficulty.B2
+        # No C2 texts at all: tier_weights(B2, C2) = {B2: 0.25, C2: 0.75},
+        # so every time C2 is prioritized it must fall through to B2 —
+        # target stays within B2's own supply so it never needs the
+        # whole-corpus fallback either.
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B2
+        learning_state.target_level = Difficulty.C2
         db_session.commit()
 
-        activated = service.activate_up_to_bank_target(db_session, user.id, target=15)
+        activated = service.activate_up_to_bank_target(db_session, user.id, target=10)
 
-        assert activated == 15
+        assert activated == 10
         counts = _active_counts_by_difficulty(db_session, user.id)
-        assert counts.get(Difficulty.C2, 0) == 0
-        assert counts[Difficulty.B2] + counts[Difficulty.C1] == 15
+        assert counts == {Difficulty.B2: 10}
 
     def test_exhausting_all_weighted_tiers_falls_back_to_the_whole_corpus(self, db_session):
         user = make_user_without_level(db_session)
-        make_text(db_session, difficulty=Difficulty.A1)  # not one of B2's weighted tiers
-        service.get_or_create_learning_state(db_session, user.id).current_level = Difficulty.B2
+        make_text(db_session, difficulty=Difficulty.A1)  # not one of B2/C1's weighted tiers
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B2
+        learning_state.target_level = Difficulty.C1
         db_session.commit()
 
         activated = service.activate_up_to_bank_target(db_session, user.id, target=5)
@@ -223,7 +226,9 @@ class TestLevelSelection:
             make_text(db_session, difficulty=Difficulty.B2)
         for _ in range(10):
             make_text(db_session, difficulty=Difficulty.C1)
-        service.get_or_create_learning_state(db_session, user.id).current_level = Difficulty.B2
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B2
+        learning_state.target_level = Difficulty.C1
         db_session.commit()
         service.activate_up_to_bank_target(db_session, user.id, target=8)
         counts_before = _active_counts_by_difficulty(db_session, user.id)
@@ -268,6 +273,145 @@ def _active_counts_by_difficulty(db_session, user_id) -> dict:
         .group_by(TextVersion.difficulty)
     ).all()
     return dict(rows)
+
+
+class TestUpdateLevelSettings:
+    def test_rejects_current_level_share_above_50_percent(self, db_session):
+        user = make_user(db_session)  # current=B2, target=C1 (default), share=0.25
+
+        result = service.update_level_settings(db_session, user.id, current_level_share=0.6)
+
+        assert isinstance(result, service.LevelSettingsRejection)
+        assert result.suggested_target_level == Difficulty.B2
+
+    def test_accepts_exactly_50_percent(self, db_session):
+        user = make_user(db_session)
+
+        result = service.update_level_settings(db_session, user.id, current_level_share=0.5)
+
+        assert result.current_level_share == 0.5
+
+    def test_collapsing_target_to_current_bypasses_the_share_ceiling(self, db_session):
+        user = make_user(db_session)
+
+        result = service.update_level_settings(
+            db_session, user.id, target_level=Difficulty.B2, current_level_share=0.9
+        )
+
+        assert result.target_level == Difficulty.B2
+        assert result.current_level_share == 0.25
+
+    def test_raises_if_target_is_below_current_level(self, db_session):
+        user = make_user(db_session)
+
+        with pytest.raises(ValueError):
+            service.update_level_settings(db_session, user.id, target_level=Difficulty.A1)
+
+    def test_raises_before_a_current_level_is_chosen(self, db_session):
+        user = make_user_without_level(db_session)
+
+        with pytest.raises(ValueError):
+            service.update_level_settings(db_session, user.id, target_level=Difficulty.B2)
+
+
+class TestRebalanceActiveBank:
+    def test_evicts_excess_and_backfills_deficient_tier(self, db_session):
+        user = make_user_without_level(db_session)
+        for _ in range(10):
+            make_text(db_session, difficulty=Difficulty.B2)
+        for _ in range(10):
+            make_text(db_session, difficulty=Difficulty.C1)
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B2
+        learning_state.target_level = Difficulty.C1
+        learning_state.current_level_share = 0.5
+        db_session.commit()
+        service.activate_up_to_bank_target(db_session, user.id, target=10)
+        assert _active_counts_by_difficulty(db_session, user.id) == {
+            Difficulty.B2: 5,
+            Difficulty.C1: 5,
+        }
+
+        learning_state.current_level_share = 0.1
+        db_session.commit()
+        service.rebalance_active_bank(db_session, user.id)
+        db_session.commit()
+
+        assert _active_counts_by_difficulty(db_session, user.id) == {
+            Difficulty.B2: 1,
+            Difficulty.C1: 9,
+        }
+        benched = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id,
+                UserTextProgress.status == TextProgressStatus.BENCHED,
+            )
+        ).all()
+        assert len(benched) == 4
+
+    def test_protects_the_in_progress_exercise_from_eviction(self, db_session):
+        user = make_user_without_level(db_session)
+        for _ in range(3):
+            make_text(db_session, difficulty=Difficulty.B2)
+        make_text(db_session, difficulty=Difficulty.C1)
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B2
+        learning_state.target_level = Difficulty.C1
+        learning_state.current_level_share = 0.25
+        db_session.commit()
+        service.activate_up_to_bank_target(db_session, user.id, target=3)
+        protected = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id, UserTextProgress.status == TextProgressStatus.ACTIVE
+            )
+        ).first()
+        learning_state.current_text_id = protected.text_id
+        learning_state.current_level_share = 0.0  # now targets 0% B2, 100% C1
+        db_session.commit()
+
+        service.rebalance_active_bank(db_session, user.id)
+        db_session.commit()
+
+        refreshed = db_session.get(UserTextProgress, (user.id, protected.text_id))
+        assert refreshed.status == TextProgressStatus.ACTIVE
+
+    def test_reactivation_preserves_mastery_score(self, db_session):
+        user = make_user_without_level(db_session)
+        for _ in range(2):
+            make_text(db_session, difficulty=Difficulty.B2)
+        make_text(db_session, difficulty=Difficulty.C1)
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B2
+        learning_state.target_level = Difficulty.C1
+        learning_state.current_level_share = 1.0  # only B2 has supply at this point anyway
+        db_session.commit()
+        service.activate_up_to_bank_target(db_session, user.id, target=2)
+
+        rows = db_session.scalars(
+            select(UserTextProgress).where(UserTextProgress.user_id == user.id)
+        ).all()
+        target_row = rows[0]
+        target_row.mastery_score = 3
+        db_session.add(target_row)
+        db_session.commit()
+
+        learning_state.current_level_share = 0.0
+        db_session.commit()
+        service.rebalance_active_bank(db_session, user.id)
+        db_session.commit()
+
+        benched_row = db_session.get(UserTextProgress, (user.id, target_row.text_id))
+        assert benched_row.status == TextProgressStatus.BENCHED
+        assert benched_row.mastery_score == 3
+
+        learning_state.current_level_share = 1.0
+        db_session.commit()
+        service.rebalance_active_bank(db_session, user.id)
+        db_session.commit()
+
+        reactivated_row = db_session.get(UserTextProgress, (user.id, target_row.text_id))
+        assert reactivated_row.status == TextProgressStatus.ACTIVE
+        assert reactivated_row.mastery_score == 3
 
 
 class TestGetNextExercise:
@@ -456,7 +600,7 @@ class TestSubmitAnswer:
         result_b = service.submit_answer(
             db_session, engine, user_b, text_id=text.id,
             user_answer="user b's answer", input_method=InputMethod.KEYBOARD,
-            submission_id=submission_id,
+            submission_id=submission_id, finalize=True,
         )
 
         assert result_a.evaluation.id != result_b.evaluation.id
@@ -473,6 +617,7 @@ class TestSubmitAnswer:
         result = service.submit_answer(
             db_session, engine, user, text_id=next_ex.progress.text_id,
             user_answer="wrong", input_method=InputMethod.KEYBOARD, submission_id=str(uuid.uuid4()),
+            finalize=True,
         )
 
         assert result.progress.next_review_at_exercise == 21  # sequence starts at 0, this is exercise #1
@@ -629,12 +774,17 @@ class TestWritingIssueUnlimitedRetry:
         assert learning_state.exercise_sequence == sequence_before
 
 
-class TestUnnaturalOneTimeRetryOffer:
-    def test_does_not_commit_on_first_try(self, db_session):
+class TestUnnaturalAndIncorrectRetryOffers:
+    """CORRECT_UNNATURAL and INCORRECT each get up to MAX_RETRIES (2) "want
+    to improve?" offers before submit_answer commits unconditionally —
+    always giving at least one chance to improve, per product decision."""
+
+    @pytest.mark.parametrize("verdict", [Verdict.CORRECT_UNNATURAL, Verdict.INCORRECT])
+    def test_does_not_commit_on_first_try(self, db_session, verdict):
         user = make_user(db_session)
         make_text(db_session)
         next_ex = service.get_next_exercise(db_session, user)
-        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_UNNATURAL)])
+        engine = FakeEngine(evaluation_results=[eval_result(verdict)])
 
         result = service.submit_answer(
             db_session, engine, user, text_id=next_ex.progress.text_id,
@@ -645,22 +795,41 @@ class TestUnnaturalOneTimeRetryOffer:
         assert result.committed is False
         assert db_session.scalars(select(Attempt).where(Attempt.user_id == user.id)).all() == []
 
-    def test_commits_when_the_one_retry_has_already_been_used(self, db_session):
+    @pytest.mark.parametrize("verdict", [Verdict.CORRECT_UNNATURAL, Verdict.INCORRECT])
+    def test_does_not_commit_after_one_retry(self, db_session, verdict):
         user = make_user(db_session)
         make_text(db_session)
         next_ex = service.get_next_exercise(db_session, user)
-        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_UNNATURAL)])
+        engine = FakeEngine(evaluation_results=[eval_result(verdict)])
 
         result = service.submit_answer(
             db_session, engine, user, text_id=next_ex.progress.text_id,
             user_answer="answer", input_method=InputMethod.KEYBOARD,
-            submission_id=str(uuid.uuid4()), unnatural_retry_used=True,
+            submission_id=str(uuid.uuid4()), retry_count=1,
+        )
+
+        assert result.committed is False
+
+    @pytest.mark.parametrize(
+        "verdict,expected_points",
+        [(Verdict.CORRECT_UNNATURAL, 1), (Verdict.INCORRECT, 0)],
+    )
+    def test_commits_once_max_retries_are_used(self, db_session, verdict, expected_points):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(verdict)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()), retry_count=2,
         )
 
         assert result.committed is True
-        assert result.points_awarded == 1
+        assert result.points_awarded == expected_points
 
-    def test_finalize_commits_without_needing_the_retry_flag(self, db_session):
+    def test_finalize_commits_without_needing_max_retries(self, db_session):
         user = make_user(db_session)
         make_text(db_session)
         next_ex = service.get_next_exercise(db_session, user)
@@ -675,8 +844,10 @@ class TestUnnaturalOneTimeRetryOffer:
         assert result.committed is True
 
     def test_a_writing_issue_verdict_during_the_retry_still_gets_its_own_unlimited_offer(self, db_session):
-        # unnatural_retry_used=True only forces a commit for an UNNATURAL
-        # verdict; a different verdict on the retry follows its own rule.
+        # retry_count only forces a commit for CORRECT_UNNATURAL/INCORRECT;
+        # a writing-issue verdict on the retry follows its own unlimited
+        # rule regardless of how high retry_count already is — writing-
+        # issue retries never consume the improve-chance budget.
         user = make_user(db_session)
         make_text(db_session)
         next_ex = service.get_next_exercise(db_session, user)
@@ -685,32 +856,18 @@ class TestUnnaturalOneTimeRetryOffer:
         result = service.submit_answer(
             db_session, engine, user, text_id=next_ex.progress.text_id,
             user_answer="i dont think hes coming", input_method=InputMethod.KEYBOARD,
-            submission_id=str(uuid.uuid4()), unnatural_retry_used=True,
+            submission_id=str(uuid.uuid4()), retry_count=2,
         )
 
         assert result.committed is False
 
 
-class TestNaturalAndIncorrectAlwaysCommitImmediately:
+class TestNaturalAlwaysCommitsImmediately:
     def test_natural_commits_without_any_flag(self, db_session):
         user = make_user(db_session)
         make_text(db_session)
         next_ex = service.get_next_exercise(db_session, user)
         engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
-
-        result = service.submit_answer(
-            db_session, engine, user, text_id=next_ex.progress.text_id,
-            user_answer="answer", input_method=InputMethod.KEYBOARD,
-            submission_id=str(uuid.uuid4()),
-        )
-
-        assert result.committed is True
-
-    def test_incorrect_commits_without_any_flag(self, db_session):
-        user = make_user(db_session)
-        make_text(db_session)
-        next_ex = service.get_next_exercise(db_session, user)
-        engine = FakeEngine(evaluation_results=[eval_result(Verdict.INCORRECT)])
 
         result = service.submit_answer(
             db_session, engine, user, text_id=next_ex.progress.text_id,
@@ -912,6 +1069,7 @@ class TestReevaluate:
         service.submit_answer(
             db_session, engine, user, text_id=next_ex.progress.text_id,
             user_answer="answer", input_method=InputMethod.KEYBOARD, submission_id=str(uuid.uuid4()),
+            finalize=True,
         )
         score_after_submit = db_session.get(UserTextProgress, (user.id, next_ex.progress.text_id)).mastery_score
 

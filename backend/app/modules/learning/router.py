@@ -24,6 +24,9 @@ from app.modules.learning.schemas import (
     ExploreOut,
     HintOut,
     LevelRequiredOut,
+    LevelSettingsIn,
+    LevelSettingsOut,
+    LevelSettingsRejectedOut,
     NoExerciseAvailableOut,
     PendingSubmitOut,
     ProgressOut,
@@ -49,6 +52,38 @@ def choose_level(
     user: User = Depends(get_current_user),
 ):
     service.choose_level(db, user.id, payload.level)
+
+
+@router.get("/level-settings", response_model=LevelSettingsOut)
+def get_level_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    learning_state = service.get_or_create_learning_state(db, user.id)
+    return LevelSettingsOut.model_validate(learning_state)
+
+
+@router.patch("/level-settings", response_model=LevelSettingsOut | LevelSettingsRejectedOut)
+def update_level_settings(
+    payload: LevelSettingsIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    try:
+        result = service.update_level_settings(
+            db,
+            user.id,
+            target_level=payload.target_level,
+            current_level_share=payload.current_level_share,
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+
+    if isinstance(result, service.LevelSettingsRejection):
+        return LevelSettingsRejectedOut(
+            message=result.message, suggested_target_level=result.suggested_target_level
+        )
+    return LevelSettingsOut.model_validate(result)
 
 
 @router.get("/next", response_model=ExerciseOut | LevelRequiredOut | NoExerciseAvailableOut)
@@ -145,7 +180,7 @@ def submit(
             input_method=payload.input_method,
             submission_id=payload.submission_id,
             finalize=payload.finalize,
-            unnatural_retry_used=payload.unnatural_retry_used,
+            retry_count=payload.retry_count,
         )
     except EvaluationEngineError as exc:
         raise HTTPException(

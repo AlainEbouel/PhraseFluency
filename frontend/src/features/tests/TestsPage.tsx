@@ -8,6 +8,7 @@ import {
   submitTestAnswer,
 } from "../../api/tests";
 import type { TestDetail, TestSubmitResult, TestSummary } from "../../api/tests";
+import { CopyButton } from "../../components/CopyButton";
 import { VerdictBadge } from "../../components/VerdictBadge";
 import { DIFFICULTY_LABELS, DIFFICULTY_PILL } from "../../constants/difficulty";
 import { useContentFlash } from "../../hooks/useContentFlash";
@@ -192,7 +193,9 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
 
                   <div className="your-answer-block">
                     <span className="your-answer-label">Votre réponse</span>
-                    <p className="your-answer-text">{submittedAnswer}</p>
+                    <p className="your-answer-text">
+                      {submittedAnswer} <CopyButton text={submittedAnswer} label="votre réponse" />
+                    </p>
                   </div>
 
                   <p className="feedback-text">{feedback.feedback}</p>
@@ -200,6 +203,7 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
                   {feedback.corrected_answer && (
                     <p className="corrected-answer">
                       Forme correcte : <strong>{feedback.corrected_answer}</strong>
+                      <CopyButton text={feedback.corrected_answer} label="la forme correcte" />
                       {feedback.writing_issues.length > 0 && (
                         <span className="writing-issues-detail">
                           {" "}
@@ -212,6 +216,7 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
                   {feedback.usage_note_alternative && (
                     <p className="usage-note">
                       <Lightbulb /> Astuce d'usage : <strong>{feedback.usage_note_alternative}</strong>
+                      <CopyButton text={feedback.usage_note_alternative} label="la remarque d'usage" />
                     </p>
                   )}
 

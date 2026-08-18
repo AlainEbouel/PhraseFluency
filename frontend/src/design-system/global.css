@@ -1304,6 +1304,30 @@ button {
   color: var(--status-critical);
 }
 
+.copy-button-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+  border-radius: var(--radius-pill);
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.copy-button-control svg {
+  width: 15px;
+  height: 15px;
+}
+
+.copy-button-control:hover {
+  background: var(--brand-tint-strong);
+  transform: scale(1.06);
+}
+
 /* ---------- Chat ---------- */
 
 .chat-panel {

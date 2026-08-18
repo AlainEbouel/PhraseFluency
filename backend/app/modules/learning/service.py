@@ -20,14 +20,20 @@ from app.modules.evaluations.models import Attempt, Evaluation
 from app.modules.evaluations.ports import EvaluationResult
 from app.modules.evaluations.service import get_or_create_reference, run_evaluation
 from app.modules.learning.engine import (
+    CEFR_ORDER,
     DEFAULT_ACTIVE_BANK_SIZE,
+    DEFAULT_CURRENT_LEVEL_SHARE,
+    MAX_CURRENT_LEVEL_SHARE,
+    MAX_RETRIES,
     QueueCandidate,
     TextProgressState,
+    bench,
     disable,
     increase_repetition,
     manually_acquire,
     points_for_verdict,
     prioritized_tiers,
+    reactivate,
     record_attempt,
     select_next,
     should_activate_next,
@@ -93,10 +99,68 @@ def choose_level(db: Session, user_id: uuid.UUID, level: Difficulty) -> UserLear
     """Set the user's current CEFR level (once, at onboarding) and fill their bank."""
     learning_state = get_or_create_learning_state(db, user_id)
     learning_state.current_level = level
+    if learning_state.target_level is None:
+        idx = CEFR_ORDER.index(level)
+        learning_state.target_level = CEFR_ORDER[min(idx + 1, len(CEFR_ORDER) - 1)]
     db.add(learning_state)
     db.flush()
     activate_up_to_bank_target(db, user_id)
     db.commit()
+    return learning_state
+
+
+@dataclass(frozen=True)
+class LevelSettingsRejection:
+    """current_level_share would exceed MAX_CURRENT_LEVEL_SHARE while the
+    target level still differs from the current one — a soft reject the
+    router turns into a message + a button to apply suggested_target_level,
+    not a raw validation error."""
+
+    message: str
+    suggested_target_level: Difficulty
+
+
+def update_level_settings(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    target_level: Difficulty | None = None,
+    current_level_share: float | None = None,
+) -> UserLearningState | LevelSettingsRejection:
+    learning_state = get_or_create_learning_state(db, user_id)
+    if learning_state.current_level is None:
+        raise ValueError("Choose a current level before adjusting level settings")
+
+    new_target = target_level if target_level is not None else learning_state.target_level
+    new_share = (
+        current_level_share if current_level_share is not None else learning_state.current_level_share
+    )
+
+    if new_target is not None and CEFR_ORDER.index(new_target) < CEFR_ORDER.index(
+        learning_state.current_level
+    ):
+        raise ValueError("Target level cannot be below the current level")
+
+    collapsed = new_target == learning_state.current_level
+    if not collapsed and new_share > MAX_CURRENT_LEVEL_SHARE:
+        return LevelSettingsRejection(
+            message=(
+                "La part du niveau actuel ne peut pas dépasser 50 % tant que le "
+                "niveau visé diffère du niveau actuel."
+            ),
+            suggested_target_level=learning_state.current_level,
+        )
+
+    learning_state.target_level = new_target
+    learning_state.current_level_share = (
+        DEFAULT_CURRENT_LEVEL_SHARE if collapsed else new_share
+    )
+    db.add(learning_state)
+    db.flush()
+
+    rebalance_active_bank(db, user_id)
+    db.commit()
+    db.refresh(learning_state)
     return learning_state
 
 
@@ -125,12 +189,17 @@ def activate_up_to_bank_target(
     Selection is difficulty-weighted around the user's chosen level (see
     docs/learning-engine.md); nothing activates until a level is chosen.
     """
-    current_level = get_or_create_learning_state(db, user_id).current_level
+    learning_state = get_or_create_learning_state(db, user_id)
+    current_level = learning_state.current_level
+    target_level = learning_state.target_level
+    current_level_share = learning_state.current_level_share
     activated = 0
     while should_activate_next(
-        _active_count(db, user_id), _has_unseen_text(db, user_id, current_level), target
+        _active_count(db, user_id),
+        _has_unseen_text(db, user_id, current_level, target_level, current_level_share),
+        target,
     ):
-        candidate = _next_unseen_text(db, user_id, current_level)
+        candidate = _next_unseen_text(db, user_id, current_level, target_level, current_level_share)
         if candidate is None:
             break
         progress = UserTextProgress(
@@ -150,8 +219,17 @@ def _seen_text_ids_subquery(user_id: uuid.UUID):
     return select(UserTextProgress.text_id).where(UserTextProgress.user_id == user_id)
 
 
-def _has_unseen_text(db: Session, user_id: uuid.UUID, current_level: Difficulty | None) -> bool:
-    return _next_unseen_text(db, user_id, current_level) is not None
+def _has_unseen_text(
+    db: Session,
+    user_id: uuid.UUID,
+    current_level: Difficulty | None,
+    target_level: Difficulty | None,
+    current_level_share: float,
+) -> bool:
+    return (
+        _next_unseen_text(db, user_id, current_level, target_level, current_level_share)
+        is not None
+    )
 
 
 def _active_counts_by_difficulty(db: Session, user_id: uuid.UUID) -> dict[Difficulty, int]:
@@ -200,12 +278,16 @@ def _next_unseen_text_any_difficulty(db: Session, user_id: uuid.UUID) -> Text | 
 
 
 def _next_unseen_text(
-    db: Session, user_id: uuid.UUID, current_level: Difficulty | None
+    db: Session,
+    user_id: uuid.UUID,
+    current_level: Difficulty | None,
+    target_level: Difficulty | None,
+    current_level_share: float,
 ) -> Text | None:
-    if current_level is None:
+    if current_level is None or target_level is None:
         return None
 
-    weights = tier_weights(current_level)
+    weights = tier_weights(current_level, target_level, current_level_share)
     active_counts = _active_counts_by_difficulty(db, user_id)
     for difficulty in prioritized_tiers(weights, active_counts):
         candidate = _next_unseen_text_at_difficulty(db, user_id, difficulty)
@@ -214,6 +296,140 @@ def _next_unseen_text(
 
     # All weighted tiers are exhausted: draw from whatever remains.
     return _next_unseen_text_any_difficulty(db, user_id)
+
+
+def _active_texts_at_difficulty_for_eviction(
+    db: Session,
+    user_id: uuid.UUID,
+    difficulty: Difficulty,
+    exclude_text_id: uuid.UUID | None,
+    limit: int,
+) -> list[UserTextProgress]:
+    """Least-progressed-first: protects texts closer to mastery from
+    having their momentum interrupted by a tier rebalance."""
+    query = (
+        select(UserTextProgress)
+        .join(Text, Text.id == UserTextProgress.text_id)
+        .join(TextVersion, TextVersion.id == Text.current_version_id)
+        .where(
+            UserTextProgress.user_id == user_id,
+            UserTextProgress.status == TextProgressStatus.ACTIVE,
+            TextVersion.difficulty == difficulty,
+        )
+    )
+    if exclude_text_id is not None:
+        query = query.where(UserTextProgress.text_id != exclude_text_id)
+    return list(
+        db.scalars(
+            query.order_by(
+                UserTextProgress.mastery_score.asc(), UserTextProgress.first_seen_at.asc()
+            ).limit(limit)
+        ).all()
+    )
+
+
+def _benched_texts_at_difficulty(
+    db: Session, user_id: uuid.UUID, difficulty: Difficulty, limit: int
+) -> list[UserTextProgress]:
+    """Most-progressed-first: bring back the texts closest to mastery
+    before pulling in a brand-new, never-seen text."""
+    return list(
+        db.scalars(
+            select(UserTextProgress)
+            .join(Text, Text.id == UserTextProgress.text_id)
+            .join(TextVersion, TextVersion.id == Text.current_version_id)
+            .where(
+                UserTextProgress.user_id == user_id,
+                UserTextProgress.status == TextProgressStatus.BENCHED,
+                TextVersion.difficulty == difficulty,
+            )
+            .order_by(
+                UserTextProgress.mastery_score.desc(), UserTextProgress.last_seen_at.desc()
+            )
+            .limit(limit)
+        ).all()
+    )
+
+
+def rebalance_active_bank(db: Session, user_id: uuid.UUID) -> None:
+    """Converge the active bank's composition to the current
+    (current_level, target_level, current_level_share) split immediately.
+
+    Invoked right after a level-settings change, not on every /next call —
+    composition only needs to move when the ratio itself moves. Swaps
+    ACTIVE<->BENCHED so bank size stays the same when possible; texts
+    benched here keep every counter (mastery_score, natural_count, etc.)
+    untouched, so a later reactivation resumes exactly where they left
+    off. Does not commit — the caller does.
+    """
+    learning_state = get_or_create_learning_state(db, user_id)
+    if learning_state.current_level is None or learning_state.target_level is None:
+        return
+
+    weights = tier_weights(
+        learning_state.current_level, learning_state.target_level, learning_state.current_level_share
+    )
+    active_counts = _active_counts_by_difficulty(db, user_id)
+    total_active = sum(active_counts.get(level, 0) for level in weights)
+    if total_active == 0:
+        return
+
+    tiers = list(weights)
+    target_counts: dict[Difficulty, int] = {}
+    allocated = 0
+    for level in tiers[:-1]:
+        target_counts[level] = int(weights[level] * total_active)
+        allocated += target_counts[level]
+    target_counts[tiers[-1]] = total_active - allocated  # remainder, sums exactly
+
+    protected_text_id = learning_state.current_text_id
+
+    over = {
+        level: active_counts.get(level, 0) - target_counts[level]
+        for level in tiers
+        if active_counts.get(level, 0) > target_counts[level]
+    }
+    under = {
+        level: target_counts[level] - active_counts.get(level, 0)
+        for level in tiers
+        if active_counts.get(level, 0) < target_counts[level]
+    }
+
+    for level, excess in over.items():
+        for row in _active_texts_at_difficulty_for_eviction(
+            db, user_id, level, protected_text_id, excess
+        ):
+            _apply_domain(row, bench(_to_domain(row)))
+            db.add(row)
+    db.flush()
+
+    for level, deficit in under.items():
+        remaining = deficit
+        for row in _benched_texts_at_difficulty(db, user_id, level, remaining):
+            _apply_domain(row, reactivate(_to_domain(row)))
+            db.add(row)
+            remaining -= 1
+        db.flush()
+        while remaining > 0:
+            candidate = _next_unseen_text_at_difficulty(db, user_id, level)
+            if candidate is None:
+                break
+            db.add(
+                UserTextProgress(
+                    user_id=user_id,
+                    text_id=candidate.id,
+                    status=TextProgressStatus.ACTIVE,
+                    first_seen_at=utcnow(),
+                    rotation_position=_next_rotation_position(db, user_id),
+                )
+            )
+            db.flush()
+            remaining -= 1
+
+    # Degenerate case (a tier ran out of both benched and unseen supply):
+    # let the normal top-up path fill any still-missing slots — capped at
+    # the ORIGINAL total, never growing the bank as a rebalance side effect.
+    activate_up_to_bank_target(db, user_id, target=total_active)
 
 
 @dataclass(frozen=True)
@@ -317,9 +533,10 @@ class PendingSubmitResult:
     """Not yet committed: no Attempt/Evaluation/progress side effects.
 
     Returned for CORRECT_WITH_WRITING_ISSUES (unlimited free retries) and
-    for CORRECT_UNNATURAL's one-time "want to improve?" offer. Both
-    withhold the reference answer until a finalize=True call commits it,
-    so retrying never costs points or advances the queue.
+    for CORRECT_UNNATURAL/INCORRECT's "want to improve?" offer, given up
+    to MAX_RETRIES times. All withhold the reference answer until a
+    finalize=True call (or MAX_RETRIES is reached) commits it, so
+    retrying never costs points or advances the queue.
     """
 
     verdict: Verdict
@@ -356,7 +573,7 @@ def submit_answer(
     input_method: InputMethod,
     submission_id: str,
     finalize: bool = False,
-    unnatural_retry_used: bool = False,
+    retry_count: int = 0,
 ) -> SubmitResult | PendingSubmitResult:
     existing_attempt = db.scalar(
         select(Attempt).where(
@@ -400,15 +617,19 @@ def submit_answer(
     )
 
     should_commit = (
-        result.verdict in (Verdict.CORRECT_NATURAL, Verdict.CORRECT_WITH_USAGE_NOTE, Verdict.INCORRECT)
+        result.verdict in (Verdict.CORRECT_NATURAL, Verdict.CORRECT_WITH_USAGE_NOTE)
         or finalize
-        or (result.verdict == Verdict.CORRECT_UNNATURAL and unnatural_retry_used)
+        or (
+            result.verdict in (Verdict.CORRECT_UNNATURAL, Verdict.INCORRECT)
+            and retry_count >= MAX_RETRIES
+        )
     )
 
     if not should_commit:
-        # Writing-issue retries are unlimited; an unnatural verdict gets
-        # exactly one "want to improve?" offer (docs product decision).
-        # No Attempt/Evaluation/progress side effects until finalized.
+        # Writing-issue retries are unlimited; CORRECT_UNNATURAL/INCORRECT
+        # get up to MAX_RETRIES "want to improve?" offers (product
+        # decision) before committing unconditionally. No Attempt/
+        # Evaluation/progress side effects until finalized.
         db.commit()
         return PendingSubmitResult(
             verdict=result.verdict,

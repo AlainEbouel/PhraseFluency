@@ -16,7 +16,7 @@ from app.modules.evaluations.ports import (
 )
 
 REFERENCE_PROMPT_VERSION = "reference-v1"
-EVALUATION_PROMPT_VERSION = "evaluation-v8"
+EVALUATION_PROMPT_VERSION = "evaluation-v9"
 EXPLANATION_PROMPT_VERSION = "explanation-v1"
 WEAKNESS_SUGGESTIONS_PROMPT_VERSION = "weakness-v1"
 
@@ -61,7 +61,10 @@ capital letter or apostrophe is a writing-only issue regardless of how informal 
 the rest of the answer is. If this is the ONLY thing wrong, stop here: the verdict is \
 CORRECT_WITH_WRITING_ISSUES, full stop, before you even get to the naturalness questions below.
 1. Is the source meaning preserved?
-2. Is there a genuine grammatical, lexical, or semantic error?
+2. Is there a genuine grammatical, lexical, or semantic error? A sentence missing only one or \
+two words that a native speaker would obviously supply from context (an article, "to" before an \
+infinitive, an auxiliary) is NOT automatically this — resolve it via the "Missing words" rule \
+further below before treating it as a step-2 error.
 3. Is the formulation reasonably acceptable in contemporary American English in this context?
 4. Is there a SUBSTANTIAL problem — register, real ambiguity, misleading connotation?
 5. Or is the only issue that another phrasing is more frequent or simply preferred? If so, this \
@@ -187,17 +190,35 @@ apostrophes, missing/wrong capitalization, or a misspelled word (e.g. "recieve" 
 "receive", "wich" for "which") that a listener would not perceive as an error when spoken \
 — use this verdict, even if it is a real spelling mistake and not just a contraction or \
 capitalization issue. Examples: "i dont think hes coming" or "I havent had time to reveiw \
-it". You MUST provide corrected_answer with the properly written form, and list each \
-specific issue in writing_issues (e.g. "missing apostrophe in \"dont\"", "misspelled \
-\"reveiw\" -> \"review\""). Do not use CORRECT_UNNATURAL or INCORRECT for an answer whose \
-only flaws are writing-only in this sense — writing issues always take precedence over \
-"unnatural" when both could arguably apply.
+it". You MUST provide corrected_answer with the properly written form, and list EVERY \
+specific issue found in writing_issues, not just one example — if there are two misspelled \
+words, list both (e.g. "missing apostrophe in \"dont\"", "misspelled \"reveiw\" -> \
+\"review\""). Never flag or mention an extra/double space between words, anywhere — not in \
+writing_issues, not in feedback, not as a reason for any verdict; it is never an issue. Do \
+not use CORRECT_UNNATURAL or INCORRECT for an answer whose only flaws are writing-only in \
+this sense — writing issues always take precedence over "unnatural" when both could \
+arguably apply.
 - INCORRECT: the meaning is not preserved — including when a fluent, grammatical sentence \
 uses the wrong word for what was intended (a false friend, or a word that names a different \
 action or thing than the source), so a native listener would come away believing something \
 different was meant — or there is a meaningful grammar error that a native speaker would not \
 make and that changes or obscures the meaning. A sentence can be perfectly well-formed and \
 still INCORRECT if it says the wrong thing.
+
+Missing words: if the learner's answer omits one or two words, first check what verdict the \
+completed sentence (with those words added back) would deserve. If it would be \
+CORRECT_NATURAL, CORRECT_WITH_USAGE_NOTE, or CORRECT_UNNATURAL, use that verdict — never \
+escalate to INCORRECT merely because something is missing — and phrase corrected_answer and \
+feedback exactly as you would for any other correction, without singling out the omission \
+("you're missing the word X"); just present the fuller form naturally, the same way you'd \
+present any other minimal fix. For example, "I forgot bring my umbrella" for the intended "I \
+forgot to bring my umbrella" is missing only "to" — completing it gives exactly the natural, \
+preferred phrasing, so the verdict is CORRECT_NATURAL, corrected_answer is null, and feedback \
+never says anything like "you're missing the word to" — treat it exactly as if the learner had \
+simply written "I forgot to bring my umbrella." If three or more words would need to be added, \
+or the omission leaves the meaning genuinely incomplete or unclear even with one or two words \
+guessed in, that is INCORRECT — state plainly that the answer isn't correct yet, without a \
+mechanical word-count callout.
 
 Correction vs. improvement — a critical distinction. A CORRECTION means something must change \
 because there is a real problem (CORRECT_UNNATURAL, CORRECT_WITH_WRITING_ISSUES, INCORRECT). An \
@@ -241,7 +262,8 @@ shown to the learner.
 - usage_note_alternative: the more conventional alternative phrasing, ONLY for \
 CORRECT_WITH_USAGE_NOTE; null for every other verdict. Never populate this alongside \
 corrected_answer — a usage note is not a correction.
-- writing_issues: list of short descriptions of writing-only issues found, if any
+- writing_issues: list of short descriptions of EVERY writing-only issue found, if any — not \
+just one example (never including extra/double spacing, which is never an issue)
 - corrected_answer: the MINIMAL corrected written form when a real correction is warranted \
 (required for CORRECT_WITH_WRITING_ISSUES; used for CORRECT_UNNATURAL/INCORRECT when a fix is \
 illustrative). Must be null for CORRECT_NATURAL and CORRECT_WITH_USAGE_NOTE — neither verdict is \

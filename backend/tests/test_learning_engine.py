@@ -293,29 +293,27 @@ class TestOnlyActiveTextsReceiveAttempts:
 
 
 class TestTierWeights:
-    def test_mid_scale_level_has_three_distinct_tiers(self):
-        weights = tier_weights(Difficulty.B2)
+    def test_two_distinct_tiers_with_default_share(self):
+        weights = tier_weights(Difficulty.B2, Difficulty.C1)
 
-        assert weights == {Difficulty.B2: 0.15, Difficulty.C1: 0.75, Difficulty.C2: 0.10}
+        assert weights == {Difficulty.B2: 0.25, Difficulty.C1: 0.75}
 
-    def test_lowest_level_also_has_three_distinct_tiers(self):
-        weights = tier_weights(Difficulty.A1)
+    def test_custom_share_is_respected(self):
+        weights = tier_weights(Difficulty.A1, Difficulty.B1, current_level_share=0.4)
 
-        assert weights == {Difficulty.A1: 0.15, Difficulty.A2: 0.75, Difficulty.B1: 0.10}
+        assert weights == {Difficulty.A1: 0.4, Difficulty.B1: 0.6}
 
-    def test_one_below_ceiling_merges_the_top_two_tiers(self):
-        weights = tier_weights(Difficulty.C1)
+    def test_collapses_to_a_single_tier_when_target_equals_current(self):
+        weights = tier_weights(Difficulty.B2, Difficulty.B2, current_level_share=0.4)
 
-        assert weights == {Difficulty.C1: 0.15, Difficulty.C2: 0.85}
+        assert weights == {Difficulty.B2: 1.0}
 
-    def test_at_the_ceiling_collapses_to_a_single_tier(self):
-        weights = tier_weights(Difficulty.C2)
-
-        assert weights == {Difficulty.C2: 1.0}
-
-    @pytest.mark.parametrize("level", list(Difficulty))
-    def test_weights_always_sum_to_one(self, level):
-        assert sum(tier_weights(level).values()) == pytest.approx(1.0)
+    @pytest.mark.parametrize(
+        "current,target",
+        [(Difficulty.A1, Difficulty.A2), (Difficulty.B2, Difficulty.C2), (Difficulty.C2, Difficulty.C2)],
+    )
+    def test_weights_always_sum_to_one(self, current, target):
+        assert sum(tier_weights(current, target).values()) == pytest.approx(1.0)
 
 
 class TestPrioritizedTiers:

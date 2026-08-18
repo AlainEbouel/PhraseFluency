@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.modules.evaluations.enums import InputMethod, Verdict
 from app.modules.learning.enums import TextProgressStatus
@@ -45,6 +45,26 @@ class ChooseLevelIn(BaseModel):
     level: Difficulty
 
 
+class LevelSettingsIn(BaseModel):
+    target_level: Difficulty | None = None
+    current_level_share: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class LevelSettingsOut(BaseModel):
+    accepted: bool = True
+    current_level: Difficulty | None
+    target_level: Difficulty | None
+    current_level_share: float
+
+    model_config = {"from_attributes": True}
+
+
+class LevelSettingsRejectedOut(BaseModel):
+    accepted: bool = False
+    message: str
+    suggested_target_level: Difficulty
+
+
 class DraftIn(BaseModel):
     draft: str
 
@@ -58,12 +78,14 @@ class SubmitIn(BaseModel):
     user_answer: str
     input_method: InputMethod
     submission_id: str
-    # Writing-issue retries are unlimited and never need this flag. An
-    # unnatural verdict gets exactly one "want to improve?" offer: the
-    # client sets this once that one retry has been used, and finalize
-    # to accept the current result (revealing the answer) without retrying.
+    # Writing-issue retries are unlimited and never touch this field. A
+    # CORRECT_UNNATURAL/INCORRECT verdict gets up to MAX_RETRIES "want to
+    # improve?" offers: retry_count is how many of those the client has
+    # already used before THIS submission (0 for the original attempt).
+    # finalize accepts the current pending result (revealing the answer)
+    # without retrying.
     finalize: bool = False
-    unnatural_retry_used: bool = False
+    retry_count: int = Field(default=0, ge=0, le=2)
 
 
 class SubmitOut(BaseModel):

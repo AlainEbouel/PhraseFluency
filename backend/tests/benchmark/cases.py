@@ -256,6 +256,30 @@ NATURAL_CASES = [
         coverage=("prepositions",),
     ),
     BenchmarkCase(
+        id="nat-missing-one-word-still-natural",
+        french_text="J'ai oublié d'apporter mon parapluie.",
+        preferred_translation="I forgot to bring my umbrella.",
+        user_answer="I forgot bring my umbrella.",
+        expected_verdict=Verdict.CORRECT_NATURAL,
+        accepts_either_full_success=True,
+        coverage=("missing-words",),
+        note="Missing only 'to' — adding it back gives exactly the preferred "
+        "translation, so this must be classified as what the completed "
+        "sentence deserves, not escalated to INCORRECT for the omission, "
+        "and feedback must not bluntly call out 'missing the word to'.",
+    ),
+    BenchmarkCase(
+        id="nat-double-space-never-flagged",
+        french_text="On se retrouve à quelle heure ?",
+        preferred_translation="What time are we meeting?",
+        user_answer="What time  are we meeting?",
+        expected_verdict=Verdict.CORRECT_NATURAL,
+        golden=True,
+        coverage=("writing-only-spacing",),
+        note="Extra space between 'time' and 'are' must never be flagged as "
+        "a writing issue or mentioned at all.",
+    ),
+    BenchmarkCase(
         id="nat-word-order-adverb",
         french_text="Je vais probablement arriver en retard.",
         preferred_translation="I'll probably be late.",
@@ -679,6 +703,18 @@ WRITING_ISSUE_CASES = [
 ]
 
 INCORRECT_CASES = [
+    BenchmarkCase(
+        id="inc-missing-three-plus-words",
+        french_text="Je vais lui envoyer un message dès que possible.",
+        preferred_translation="I'll send her a message as soon as possible.",
+        user_answer="I'll send message.",
+        expected_verdict=Verdict.INCORRECT,
+        coverage=("missing-words",),
+        note="Missing 'her', 'a', and 'as soon as possible' — three or more "
+        "words needed to restore who receives it and when, leaving the "
+        "meaning genuinely incomplete; this is INCORRECT, not a minor "
+        "omission to wave through.",
+    ),
     BenchmarkCase(
         id="inc-assist-meeting",
         french_text="Je vais assister à la réunion.",
