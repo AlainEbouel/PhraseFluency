@@ -400,7 +400,7 @@ def submit_answer(
     )
 
     should_commit = (
-        result.verdict in (Verdict.CORRECT_NATURAL, Verdict.INCORRECT)
+        result.verdict in (Verdict.CORRECT_NATURAL, Verdict.CORRECT_WITH_USAGE_NOTE, Verdict.INCORRECT)
         or finalize
         or (result.verdict == Verdict.CORRECT_UNNATURAL and unnatural_retry_used)
     )
@@ -442,6 +442,8 @@ def submit_answer(
         natural_american_english=result.natural_american_english,
         writing_issues=result.writing_issues,
         corrected_answer=result.corrected_answer,
+        problematic_segment=result.problematic_segment,
+        usage_note_alternative=result.usage_note_alternative,
         feedback=result.feedback,
         error_categories=result.error_categories,
         model=result.model,
@@ -619,6 +621,8 @@ def reevaluate_text(
         natural_american_english=result.natural_american_english,
         writing_issues=result.writing_issues,
         corrected_answer=result.corrected_answer,
+        problematic_segment=result.problematic_segment,
+        usage_note_alternative=result.usage_note_alternative,
         feedback=result.feedback,
         error_categories=result.error_categories,
         model=result.model,

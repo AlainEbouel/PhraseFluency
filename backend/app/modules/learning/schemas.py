@@ -71,6 +71,7 @@ class SubmitOut(BaseModel):
     verdict: Verdict
     points_awarded: int
     corrected_answer: str | None
+    usage_note_alternative: str | None
     feedback: str
     writing_issues: list[str]
     preferred_translation: str
@@ -102,6 +103,7 @@ class ReevaluateOut(BaseModel):
     verdict: Verdict
     feedback: str
     corrected_answer: str | None
+    usage_note_alternative: str | None
 
 
 class ExplanationOut(BaseModel):
@@ -119,5 +121,6 @@ class ExploreOut(BaseModel):
     verdict: Verdict
     meaning_preserved: bool
     corrected_answer: str | None
+    usage_note_alternative: str | None
     feedback: str
     writing_issues: list[str]

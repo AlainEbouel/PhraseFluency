@@ -59,6 +59,8 @@ class Evaluation(Base, UUIDPrimaryKeyMixin, CreatedAtMixin):
     natural_american_english: Mapped[bool] = mapped_column(Boolean)
     writing_issues: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     corrected_answer: Mapped[str | None] = mapped_column(TextColumn, default=None)
+    problematic_segment: Mapped[str | None] = mapped_column(TextColumn, default=None)
+    usage_note_alternative: Mapped[str | None] = mapped_column(TextColumn, default=None)
     feedback: Mapped[str] = mapped_column(TextColumn)
     error_categories: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     model: Mapped[str] = mapped_column(String(64))

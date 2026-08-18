@@ -6,6 +6,7 @@ from app.modules.learning.engine import (
     QueueCandidate,
     TextProgressState,
     increase_repetition,
+    is_imperfect,
     manually_acquire,
     points_for_verdict,
     prioritized_tiers,
@@ -28,6 +29,7 @@ class TestVerdictPointMappings:
         "verdict,expected",
         [
             (Verdict.CORRECT_NATURAL, 2),
+            (Verdict.CORRECT_WITH_USAGE_NOTE, 2),
             (Verdict.CORRECT_UNNATURAL, 1),
             (Verdict.CORRECT_WITH_WRITING_ISSUES, 1),
             (Verdict.INCORRECT, 0),
@@ -35,6 +37,49 @@ class TestVerdictPointMappings:
     )
     def test_base_points(self, verdict, expected):
         assert points_for_verdict(verdict, hint_used=False) == expected
+
+
+class TestUsageNoteScoresLikeNatural:
+    """CORRECT_WITH_USAGE_NOTE is a full success (product decision): it must
+    score, schedule, and count exactly like CORRECT_NATURAL everywhere."""
+
+    def test_same_points_with_and_without_hint(self):
+        for hint_used in (True, False):
+            assert points_for_verdict(Verdict.CORRECT_WITH_USAGE_NOTE, hint_used) == points_for_verdict(
+                Verdict.CORRECT_NATURAL, hint_used
+            )
+
+    def test_not_imperfect_without_hint(self):
+        assert is_imperfect(Verdict.CORRECT_WITH_USAGE_NOTE, hint_used=False) is False
+
+    def test_imperfect_with_hint_like_natural(self):
+        assert is_imperfect(Verdict.CORRECT_WITH_USAGE_NOTE, hint_used=True) is is_imperfect(
+            Verdict.CORRECT_NATURAL, hint_used=True
+        )
+
+    def test_same_review_interval_as_natural(self):
+        for hint_used in (True, False):
+            assert review_interval_for(Verdict.CORRECT_WITH_USAGE_NOTE, hint_used) == review_interval_for(
+                Verdict.CORRECT_NATURAL, hint_used
+            )
+
+    def test_counts_toward_natural_count(self):
+        outcome = record_attempt(
+            active_progress(), Verdict.CORRECT_WITH_USAGE_NOTE, hint_used=False, current_exercise_sequence=1
+        )
+        assert outcome.progress.natural_count == 1
+
+    def test_two_usage_note_answers_masters_with_perfect_record(self):
+        progress = active_progress()
+        sequence = 0
+        for _ in range(2):
+            sequence += 1
+            outcome = record_attempt(
+                progress, Verdict.CORRECT_WITH_USAGE_NOTE, hint_used=False, current_exercise_sequence=sequence
+            )
+            progress = outcome.progress
+        assert progress.status == TextProgressStatus.MASTERED
+        assert progress.perfect_learning_record is True
 
 
 class TestHintCap:

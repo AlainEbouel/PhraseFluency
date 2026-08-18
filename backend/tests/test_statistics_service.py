@@ -111,7 +111,7 @@ def make_attempt(
         verdict=verdict,
         meaning_preserved=True,
         grammar_correct=True,
-        natural_american_english=verdict == Verdict.CORRECT_NATURAL,
+        natural_american_english=verdict in (Verdict.CORRECT_NATURAL, Verdict.CORRECT_WITH_USAGE_NOTE),
         writing_issues=[],
         corrected_answer=None,
         feedback="feedback",
@@ -156,6 +156,15 @@ class TestDashboard:
 
         assert dashboard["natural_answer_rate"] == 1 / 3
         assert dashboard["overall_success_rate"] == 2 / 3
+
+    def test_usage_note_counts_as_natural_like_correct_natural(self, db_session):
+        user = make_user(db_session)
+        make_attempt(db_session, user, make_text_version(db_session), Verdict.CORRECT_WITH_USAGE_NOTE)
+        make_attempt(db_session, user, make_text_version(db_session), Verdict.CORRECT_UNNATURAL)
+
+        dashboard = service.get_dashboard(db_session, user.id)
+
+        assert dashboard["natural_answer_rate"] == 1 / 2
 
     def test_test_status_breakdown(self, db_session):
         user = make_user(db_session)

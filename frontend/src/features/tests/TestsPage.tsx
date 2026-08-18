@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Lightbulb } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   fetchTestDetail,
@@ -114,7 +114,7 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
     try {
       const result = await submitTestAnswer(testId, currentTextId, answer, crypto.randomUUID());
       playSound(
-        result.verdict === "CORRECT_NATURAL"
+        result.verdict === "CORRECT_NATURAL" || result.verdict === "CORRECT_WITH_USAGE_NOTE"
           ? "natural"
           : result.verdict === "INCORRECT"
             ? "incorrect"
@@ -206,6 +206,12 @@ function TestDetailView({ testId, onBack }: { testId: string; onBack: () => void
                           ({feedback.writing_issues.join(" · ")})
                         </span>
                       )}
+                    </p>
+                  )}
+
+                  {feedback.usage_note_alternative && (
+                    <p className="usage-note">
+                      <Lightbulb /> Astuce d'usage : <strong>{feedback.usage_note_alternative}</strong>
                     </p>
                   )}
 

@@ -9,6 +9,7 @@ export type TextProgressStatus =
 
 export type Verdict =
   | "CORRECT_NATURAL"
+  | "CORRECT_WITH_USAGE_NOTE"
   | "CORRECT_UNNATURAL"
   | "CORRECT_WITH_WRITING_ISSUES"
   | "INCORRECT";
@@ -52,6 +53,7 @@ export interface SubmitResult {
   verdict: Verdict;
   points_awarded: number;
   corrected_answer: string | null;
+  usage_note_alternative: string | null;
   feedback: string;
   writing_issues: string[];
   preferred_translation: string;
@@ -75,6 +77,7 @@ export interface ExploreResult {
   verdict: Verdict;
   meaning_preserved: boolean;
   corrected_answer: string | null;
+  usage_note_alternative: string | null;
   feedback: string;
   writing_issues: string[];
 }

@@ -167,6 +167,7 @@ def submit(
         verdict=result.evaluation.verdict,
         points_awarded=result.points_awarded,
         corrected_answer=result.evaluation.corrected_answer,
+        usage_note_alternative=result.evaluation.usage_note_alternative,
         feedback=result.evaluation.feedback,
         writing_issues=list(result.evaluation.writing_issues),
         preferred_translation=result.reference.preferred_translation,
@@ -225,6 +226,7 @@ def reevaluate(
         verdict=evaluation.verdict,
         feedback=evaluation.feedback,
         corrected_answer=evaluation.corrected_answer,
+        usage_note_alternative=evaluation.usage_note_alternative,
     )
 
 
@@ -290,6 +292,7 @@ def explore(
         verdict=result.verdict,
         meaning_preserved=result.meaning_preserved,
         corrected_answer=result.corrected_answer,
+        usage_note_alternative=result.usage_note_alternative,
         feedback=result.feedback,
         writing_issues=list(result.writing_issues),
     )

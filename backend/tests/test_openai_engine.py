@@ -144,6 +144,9 @@ class TestEvaluate:
             meaning_preserved=True,
             grammar_correct=True,
             natural_american_english=True,
+            problematic_segment=None,
+            consistency_check="No inconsistency.",
+            usage_note_alternative=None,
             writing_issues=[],
             corrected_answer=None,
             feedback="Nicely done.",
@@ -157,7 +160,7 @@ class TestEvaluate:
         assert result.verdict == Verdict.CORRECT_NATURAL
         assert result.feedback == "Nicely done."
         assert result.error_categories == []
-        assert result.prompt_version == "evaluation-v5"
+        assert result.prompt_version == "evaluation-v8"
 
     def test_error_categories_mapped_to_plain_strings(self):
         parsed = _EvaluationSchema(
@@ -165,6 +168,9 @@ class TestEvaluate:
             meaning_preserved=False,
             grammar_correct=False,
             natural_american_english=False,
+            problematic_segment="corrected",
+            consistency_check="No inconsistency.",
+            usage_note_alternative=None,
             writing_issues=[],
             corrected_answer="corrected",
             feedback="Meaning changed.",
@@ -183,6 +189,9 @@ class TestEvaluate:
             meaning_preserved=True,
             grammar_correct=True,
             natural_american_english=True,
+            problematic_segment=None,
+            consistency_check="No inconsistency.",
+            usage_note_alternative=None,
             writing_issues=[],
             corrected_answer=None,
             feedback="ok",
@@ -202,6 +211,9 @@ class TestEvaluate:
             meaning_preserved=True,
             grammar_correct=True,
             natural_american_english=True,
+            problematic_segment=None,
+            consistency_check="No inconsistency.",
+            usage_note_alternative=None,
             writing_issues=[],
             corrected_answer=None,
             feedback="ok",
@@ -221,6 +233,9 @@ class TestEvaluate:
             meaning_preserved=True,
             grammar_correct=True,
             natural_american_english=True,
+            problematic_segment=None,
+            consistency_check="No inconsistency.",
+            usage_note_alternative=None,
             writing_issues=[],
             corrected_answer=None,
             feedback="ok",

@@ -224,6 +224,8 @@ def submit_test_answer(
         natural_american_english=result.natural_american_english,
         writing_issues=result.writing_issues,
         corrected_answer=result.corrected_answer,
+        problematic_segment=result.problematic_segment,
+        usage_note_alternative=result.usage_note_alternative,
         feedback=result.feedback,
         error_categories=result.error_categories,
         model=result.model,

@@ -52,9 +52,12 @@ def eval_result(verdict: Verdict, **overrides) -> EvaluationResult:
         verdict=verdict,
         meaning_preserved=True,
         grammar_correct=True,
-        natural_american_english=verdict == Verdict.CORRECT_NATURAL,
+        natural_american_english=verdict
+        in (Verdict.CORRECT_NATURAL, Verdict.CORRECT_WITH_USAGE_NOTE),
+        problematic_segment=None,
         writing_issues=[],
         corrected_answer=None,
+        usage_note_alternative=None,
         feedback="feedback",
         error_categories=[],
         model="gpt-4o-mini",

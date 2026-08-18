@@ -26,6 +26,7 @@ from dataclasses import dataclass
 import pytest
 
 from app.core.config import get_settings
+from app.modules.evaluations.enums import Verdict
 from app.modules.evaluations.ports import EvaluationRequest
 from app.modules.evaluations.service import get_evaluation_engine
 from tests.benchmark.cases import BENCHMARK_CASES, BenchmarkCase
@@ -34,16 +35,46 @@ pytestmark = pytest.mark.benchmark
 
 REPORT_PATH = pathlib.Path(__file__).parent / "reports" / "latest.txt"
 
+# CORRECT_UNNATURAL/INCORRECT mean "something changed" — if the exact segment
+# the model just called problematic reappears in its own corrected_answer,
+# that is the self-contradiction the mandatory internal-consistency check
+# (evaluation-v6) exists to prevent. Checked across ALL cases, not just the
+# new ones: the generalized, automated version of regression test 2.
+_INCONSISTENCY_VERDICTS = (Verdict.CORRECT_UNNATURAL, Verdict.INCORRECT)
+
 
 @dataclass
 class CaseOutcome:
     case: BenchmarkCase
     actual_verdict: str | None
+    problematic_segment: str | None
+    corrected_answer: str | None
     error: str | None
 
     @property
     def correct(self) -> bool:
-        return self.error is None and self.actual_verdict == self.case.expected_verdict.value
+        if self.error is not None:
+            return False
+        if self.case.accepts_either_full_success:
+            return self.actual_verdict in (
+                Verdict.CORRECT_NATURAL.value,
+                Verdict.CORRECT_WITH_USAGE_NOTE.value,
+            )
+        return self.actual_verdict == self.case.expected_verdict.value
+
+    @property
+    def self_contradictory(self) -> bool:
+        if self.error is not None or self.actual_verdict not in {v.value for v in _INCONSISTENCY_VERDICTS}:
+            return False
+        if not self.problematic_segment or not self.corrected_answer:
+            return False
+        # A single flagged word (e.g. "worry" in a dropped-negation case)
+        # will always survive an otherwise-correct fix like "Don't worry...";
+        # only a multi-word segment reappearing verbatim is a real
+        # self-contradiction (mirrors the runtime guard in openai_engine.py).
+        if len(self.problematic_segment.split()) <= 1:
+            return False
+        return self.problematic_segment.strip().lower() in self.corrected_answer.strip().lower()
 
 
 def _run_case(engine, case: BenchmarkCase) -> CaseOutcome:
@@ -58,8 +89,16 @@ def _run_case(engine, case: BenchmarkCase) -> CaseOutcome:
     try:
         result = engine.evaluate(request)
     except Exception as exc:  # noqa: BLE001 - a live API call, record and keep going
-        return CaseOutcome(case=case, actual_verdict=None, error=str(exc))
-    return CaseOutcome(case=case, actual_verdict=result.verdict.value, error=None)
+        return CaseOutcome(
+            case=case, actual_verdict=None, problematic_segment=None, corrected_answer=None, error=str(exc)
+        )
+    return CaseOutcome(
+        case=case,
+        actual_verdict=result.verdict.value,
+        problematic_segment=result.problematic_segment,
+        corrected_answer=result.corrected_answer,
+        error=None,
+    )
 
 
 def _build_report(outcomes: list[CaseOutcome]) -> str:
@@ -68,12 +107,24 @@ def _build_report(outcomes: list[CaseOutcome]) -> str:
     golden = [o for o in outcomes if o.case.golden]
     golden_correct = sum(1 for o in golden if o.correct)
     misses = [o for o in outcomes if not o.correct]
+    contradictions = [o for o in outcomes if o.self_contradictory]
 
     lines = [
         f"Linguistic benchmark report — {correct}/{total} correct "
-        f"({correct / total:.1%}), golden {golden_correct}/{len(golden)}",
+        f"({correct / total:.1%}), golden {golden_correct}/{len(golden)}, "
+        f"internal-consistency violations {len(contradictions)}",
         "",
     ]
+
+    if contradictions:
+        lines.append(f"Internal-consistency violations ({len(contradictions)}):")
+        for o in contradictions:
+            lines.append(
+                f"  - {o.case.id}: verdict={o.actual_verdict} "
+                f'problematic_segment="{o.problematic_segment}" reappears in '
+                f'corrected_answer="{o.corrected_answer}"'
+            )
+        lines.append("")
 
     if misses:
         lines.append(f"Misses ({len(misses)}):")
@@ -127,6 +178,13 @@ def test_linguistic_benchmark():
 
     golden_misses = [o for o in outcomes if o.case.golden and not o.correct]
     overall_accuracy = sum(1 for o in outcomes if o.correct) / len(outcomes)
+
+    # Reported above, not asserted: a correction that restores a dropped
+    # negation (e.g. "Worry..." -> "Don't worry...") legitimately reuses the
+    # flagged segment as part of the fix, which the substring heuristic
+    # can't always tell apart from a genuine self-contradiction. Treat this
+    # as a manual-review signal (like the runtime logger.warning it mirrors),
+    # not a hard gate.
 
     assert not golden_misses, (
         f"{len(golden_misses)} golden case(s) failed — see {REPORT_PATH}\n" + report

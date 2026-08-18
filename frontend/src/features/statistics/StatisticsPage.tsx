@@ -17,6 +17,7 @@ function pct(value: number): string {
 
 const VERDICT_PILL: Record<string, string> = {
   CORRECT_NATURAL: "pill-good",
+  CORRECT_WITH_USAGE_NOTE: "pill-good",
   CORRECT_UNNATURAL: "pill-warning",
   CORRECT_WITH_WRITING_ISSUES: "pill-serious",
   INCORRECT: "pill-critical",

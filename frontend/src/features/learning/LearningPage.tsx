@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Lightbulb } from "lucide-react";
 import { ApiError } from "../../api/client";
 import { alternativeAudioUrl, preferredAudioUrl } from "../../api/audio";
 import { fetchNextDictation, submitDictationAnswer } from "../../api/dictation";
@@ -224,7 +225,7 @@ export function LearningPage() {
       setSubmittedAnswer(draft);
       if (result.committed) {
         playSound(
-          result.verdict === "CORRECT_NATURAL"
+          result.verdict === "CORRECT_NATURAL" || result.verdict === "CORRECT_WITH_USAGE_NOTE"
             ? "natural"
             : result.verdict === "INCORRECT"
               ? "incorrect"
@@ -275,7 +276,7 @@ export function LearningPage() {
         submissionId
       );
       playSound(
-        result.verdict === "CORRECT_NATURAL"
+        result.verdict === "CORRECT_NATURAL" || result.verdict === "CORRECT_WITH_USAGE_NOTE"
           ? "natural"
           : result.verdict === "INCORRECT"
             ? "incorrect"
@@ -697,6 +698,12 @@ export function LearningPage() {
               </p>
             )}
 
+            {feedback.usage_note_alternative && (
+              <p className="usage-note">
+                <Lightbulb /> Astuce d'usage : <strong>{feedback.usage_note_alternative}</strong>
+              </p>
+            )}
+
             <span className="reference-heading">Traduction recommandée</span>
             <div className="reference-block reference-block-preferred">
               <span>{feedback.preferred_translation}</span>
@@ -802,6 +809,12 @@ export function LearningPage() {
                   {exploreResult.corrected_answer && (
                     <p className="corrected-answer">
                       Forme correcte : <strong>{exploreResult.corrected_answer}</strong>
+                    </p>
+                  )}
+                  {exploreResult.usage_note_alternative && (
+                    <p className="usage-note">
+                      <Lightbulb /> Astuce d'usage :{" "}
+                      <strong>{exploreResult.usage_note_alternative}</strong>
                     </p>
                   )}
                 </div>

@@ -56,6 +56,13 @@ class TestConsecutiveTestSuccesses:
         state = apply_test_response(state, Verdict.CORRECT_WITH_WRITING_ISSUES)
         assert state.consecutive_successes == 0
 
+    def test_usage_note_counts_as_success_like_natural(self):
+        state = TestTextState()
+        state = apply_test_response(state, Verdict.CORRECT_WITH_USAGE_NOTE)
+        assert state.consecutive_successes == 1
+        state = apply_test_response(state, Verdict.CORRECT_WITH_USAGE_NOTE)
+        assert state.mastered is True
+
 
 class TestResetOnTestFailure:
     def test_incorrect_resets_consecutive_counter(self):

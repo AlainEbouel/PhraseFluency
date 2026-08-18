@@ -32,10 +32,12 @@ def group_into_tests(eligible_text_ids: list[str]) -> tuple[list[list[str]], lis
 def counts_as_test_success(verdict: Verdict) -> bool:
     """Only a fully natural answer advances test mastery (product decision).
 
-    CORRECT_UNNATURAL and CORRECT_WITH_WRITING_ISSUES are "correct" for
-    learning-engine scoring but do not count here.
+    CORRECT_WITH_USAGE_NOTE is a full success too (same as CORRECT_NATURAL,
+    just with an optional usage tip). CORRECT_UNNATURAL and
+    CORRECT_WITH_WRITING_ISSUES are "correct" for learning-engine scoring
+    but do not count here.
     """
-    return verdict == Verdict.CORRECT_NATURAL
+    return verdict in (Verdict.CORRECT_NATURAL, Verdict.CORRECT_WITH_USAGE_NOTE)
 
 
 @dataclass(frozen=True)

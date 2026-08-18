@@ -6,10 +6,13 @@ non-golden "difficult/ambiguous" cases have a best-guess expected verdict but
 are allowed to miss without failing the benchmark (see the module docstring
 in test_linguistic_benchmark.py for the acceptance gates).
 
-Coverage tags mirror the checklist in docs/linguistic-benchmark.md, plus two
-added this session to stress-test the acceptability-vs-optimality rule
-introduced in evaluation-v3 and refined in evaluation-v4/v5:
-"acceptability-not-optimality" and "regional-variant".
+Coverage tags mirror the checklist in docs/linguistic-benchmark.md, plus tags
+added across sessions to stress-test the acceptability-vs-optimality rule
+introduced in evaluation-v3 and refined through evaluation-v4/v5/v6:
+"acceptability-not-optimality", "regional-variant", "usage-note" (the
+CORRECT_WITH_USAGE_NOTE category added in evaluation-v6) and
+"consistency-check" (the mandatory internal-coherence rule also added in
+evaluation-v6).
 """
 
 from __future__ import annotations
@@ -32,6 +35,13 @@ class BenchmarkCase:
     alternatives: list[str] = field(default_factory=list)
     contexts: list[str] = field(default_factory=list)
     hint_used: bool = False
+    # CORRECT_NATURAL and CORRECT_WITH_USAGE_NOTE are both a full success
+    # (product decision) — for cases that only assert "this must not be
+    # penalized", either verdict counts as correct so the benchmark doesn't
+    # flake between the two whenever the model's tie-break lands on one vs
+    # the other. Cases that specifically test the new category's labeling
+    # keep this False and require the exact expected_verdict.
+    accepts_either_full_success: bool = False
 
 
 NATURAL_CASES = [
@@ -43,9 +53,13 @@ NATURAL_CASES = [
         user_answer="I need to verify that first.",
         expected_verdict=Verdict.CORRECT_NATURAL,
         golden=True,
-        coverage=("acceptability-not-optimality", "american-usage"),
+        accepts_either_full_success=True,
+        coverage=("acceptability-not-optimality", "american-usage", "usage-note"),
         note="'Verify' is less frequent than 'check' in casual speech but "
-        "equally acceptable; frequency alone is never a penalty.",
+        "equally acceptable; frequency alone is never a penalty. Regression "
+        "test: must not be CORRECT_UNNATURAL just because 'check' is more "
+        "frequent (either CORRECT_NATURAL or CORRECT_WITH_USAGE_NOTE is a "
+        "full success here).",
     ),
     BenchmarkCase(
         id="nat-start-begin",
@@ -91,9 +105,13 @@ NATURAL_CASES = [
         user_answer="I have already seen this movie.",
         expected_verdict=Verdict.CORRECT_NATURAL,
         golden=True,
-        coverage=("present-perfect-vs-simple-past", "contractions"),
+        accepts_either_full_success=True,
+        coverage=("present-perfect-vs-simple-past", "contractions", "usage-note"),
         note="Omitting the contraction does not make an answer 'unnecessarily "
-        "formal' or unnatural, especially in writing.",
+        "formal' or unnatural, especially in writing. Regression test: a "
+        "valid non-contracted form must not be auto-penalized just because "
+        "a contraction is more conversational (either CORRECT_NATURAL or "
+        "CORRECT_WITH_USAGE_NOTE is a full success here).",
     ),
     BenchmarkCase(
         id="nat-professional-register",
@@ -263,6 +281,60 @@ NATURAL_CASES = [
         user_answer="It's pouring outside.",
         expected_verdict=Verdict.CORRECT_NATURAL,
         coverage=("natural-alternative",),
+    ),
+]
+
+USAGE_NOTE_CASES = [
+    BenchmarkCase(
+        id="usage-accepted-agreed-to-change",
+        french_text="Je suis surpris qu'ils aient accepté de changer la date aussi tard.",
+        preferred_translation="I'm surprised they agreed to change the date so late.",
+        user_answer="I'm surprised they accepted to change the date so late.",
+        expected_verdict=Verdict.CORRECT_WITH_USAGE_NOTE,
+        golden=True,
+        accepts_either_full_success=True,
+        coverage=("usage-note", "consistency-check", "correction-vs-improvement"),
+        note="Canonical regression case from the product spec: 'accepted to "
+        "change' is understandable and genuinely used, so this must never "
+        "be CORRECT_UNNATURAL. If the model recommends 'agreed to change', "
+        "no 'natural alternative' it lists may reuse 'accepted to change' "
+        "after calling it a problem (internal consistency check).",
+    ),
+    BenchmarkCase(
+        id="usage-resolve-vs-solve",
+        french_text="Il a réussi à résoudre le problème avant la fin de la journée.",
+        preferred_translation="He managed to solve the problem before the end of the day.",
+        user_answer="He managed to resolve the problem before the end of the day.",
+        expected_verdict=Verdict.CORRECT_WITH_USAGE_NOTE,
+        golden=True,
+        accepts_either_full_success=True,
+        coverage=("acceptability-not-optimality", "usage-note"),
+        note="'Resolve' is less frequent than 'solve' for a concrete problem "
+        "but fully standard and unambiguous — frequency alone must never "
+        "produce CORRECT_UNNATURAL.",
+    ),
+    BenchmarkCase(
+        id="usage-non-contracted-formal-note",
+        french_text="Je ne pense pas que ce soit nécessaire.",
+        preferred_translation="I don't think that's necessary.",
+        user_answer="I do not think that's necessary.",
+        expected_verdict=Verdict.CORRECT_WITH_USAGE_NOTE,
+        accepts_either_full_success=True,
+        coverage=("contractions", "usage-note"),
+        note="A grammatically correct non-contracted form must not be "
+        "auto-penalized just because a contraction is more frequent in "
+        "speech.",
+    ),
+    BenchmarkCase(
+        id="usage-obtain-vs-get",
+        french_text="J'ai réussi à obtenir un rendez-vous pour demain.",
+        preferred_translation="I managed to get an appointment for tomorrow.",
+        user_answer="I managed to obtain an appointment for tomorrow.",
+        expected_verdict=Verdict.CORRECT_WITH_USAGE_NOTE,
+        accepts_either_full_success=True,
+        coverage=("acceptability-not-optimality", "usage-note"),
+        note="'Obtain' is more formal/less frequent than 'get' here but "
+        "entirely correct and unambiguous in this context.",
     ),
 ]
 
@@ -1032,5 +1104,10 @@ AMBIGUOUS_CASES = [
 ]
 
 BENCHMARK_CASES = (
-    NATURAL_CASES + UNNATURAL_CASES + WRITING_ISSUE_CASES + INCORRECT_CASES + AMBIGUOUS_CASES
+    NATURAL_CASES
+    + USAGE_NOTE_CASES
+    + UNNATURAL_CASES
+    + WRITING_ISSUE_CASES
+    + INCORRECT_CASES
+    + AMBIGUOUS_CASES
 )

@@ -61,6 +61,7 @@ class TestSubmitOut(BaseModel):
     verdict: Verdict
     feedback: str
     corrected_answer: str | None
+    usage_note_alternative: str | None
     writing_issues: list[str]
     consecutive_successes: int
     mastered: bool

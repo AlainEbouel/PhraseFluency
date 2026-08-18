@@ -63,10 +63,12 @@ export function acquireText(textId: string): Promise<{ progress: Progress }> {
 }
 
 export function reevaluate(textId: string) {
-  return apiRequest<{ verdict: string; feedback: string; corrected_answer: string | null }>(
-    `/api/v1/learning/${textId}/reevaluate`,
-    { method: "POST" }
-  );
+  return apiRequest<{
+    verdict: string;
+    feedback: string;
+    corrected_answer: string | null;
+    usage_note_alternative: string | null;
+  }>(`/api/v1/learning/${textId}/reevaluate`, { method: "POST" });
 }
 
 export function fetchExplanation(textId: string) {

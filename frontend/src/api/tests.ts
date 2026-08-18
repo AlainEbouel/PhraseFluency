@@ -40,6 +40,7 @@ export interface TestSubmitResult {
   verdict: string;
   feedback: string;
   corrected_answer: string | null;
+  usage_note_alternative: string | null;
   writing_issues: string[];
   consecutive_successes: number;
   mastered: boolean;

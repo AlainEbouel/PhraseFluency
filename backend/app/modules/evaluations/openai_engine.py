@@ -54,10 +54,17 @@ class _ReferenceSchema(BaseModel):
 
 
 class _EvaluationSchema(BaseModel):
-    verdict: Verdict
+    # Field order matters: structured-output generation fills fields in
+    # the order declared, so reasoning-oriented fields come BEFORE
+    # verdict — forcing the model to think the case through instead of
+    # committing to a verdict first and rationalizing it afterward.
     meaning_preserved: bool
     grammar_correct: bool
     natural_american_english: bool
+    problematic_segment: str | None
+    consistency_check: str
+    verdict: Verdict
+    usage_note_alternative: str | None
     writing_issues: list[str]
     corrected_answer: str | None
     feedback: str
@@ -112,13 +119,47 @@ class OpenAIEvaluationEngine(EvaluationEngine):
             schema=_EvaluationSchema,
         )
         parsed = self._require_parsed(completion)
+
+        # Defensive guard, not just a prompt instruction: a usage note is
+        # never a correction, regardless of what the model returned.
+        corrected_answer = parsed.corrected_answer
+        if parsed.verdict == Verdict.CORRECT_WITH_USAGE_NOTE and corrected_answer is not None:
+            logger.warning(
+                "Evaluation returned CORRECT_WITH_USAGE_NOTE with a non-null "
+                "corrected_answer; dropping it (a usage note is not a correction)."
+            )
+            corrected_answer = None
+
+        # Observability only (never mutates the verdict): flag the exact
+        # contradiction this prompt is designed to prevent — a segment
+        # named as the problem reappearing in its own proposed fix. Requires
+        # a multi-word segment: a single flagged word (e.g. "worry" in a
+        # dropped-negation case) will always survive an otherwise-correct
+        # fix like "Don't worry...", which isn't a real contradiction.
+        if (
+            parsed.verdict in (Verdict.CORRECT_UNNATURAL, Verdict.INCORRECT)
+            and parsed.problematic_segment
+            and len(parsed.problematic_segment.split()) > 1
+            and corrected_answer
+            and parsed.problematic_segment.lower() in corrected_answer.lower()
+        ):
+            logger.warning(
+                "Possible evaluation self-inconsistency: problematic_segment %r "
+                "reappears in corrected_answer %r for verdict %s",
+                parsed.problematic_segment,
+                corrected_answer,
+                parsed.verdict,
+            )
+
         return EvaluationResult(
             verdict=parsed.verdict,
             meaning_preserved=parsed.meaning_preserved,
             grammar_correct=parsed.grammar_correct,
             natural_american_english=parsed.natural_american_english,
             writing_issues=list(parsed.writing_issues),
-            corrected_answer=parsed.corrected_answer,
+            corrected_answer=corrected_answer,
+            problematic_segment=parsed.problematic_segment,
+            usage_note_alternative=parsed.usage_note_alternative,
             feedback=parsed.feedback,
             error_categories=[c.value for c in parsed.error_categories],
             model=self._model,

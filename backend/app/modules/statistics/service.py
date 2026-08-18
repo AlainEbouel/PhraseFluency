@@ -24,9 +24,14 @@ DEFAULT_WEAKNESS_CATEGORY_LIMIT = 3
 
 SUCCESS_VERDICTS = (
     Verdict.CORRECT_NATURAL,
+    Verdict.CORRECT_WITH_USAGE_NOTE,
     Verdict.CORRECT_UNNATURAL,
     Verdict.CORRECT_WITH_WRITING_ISSUES,
 )
+
+# A usage note is a full success (product decision) — counts as "natural"
+# in statistics exactly like CORRECT_NATURAL.
+NATURAL_VERDICTS = (Verdict.CORRECT_NATURAL, Verdict.CORRECT_WITH_USAGE_NOTE)
 
 
 def _rate(numerator: int, denominator: int) -> float:
@@ -45,7 +50,7 @@ def _trend(db: Session, user_id: uuid.UUID, since=None) -> dict:
 
     rows = db.execute(query).all()
     total = sum(count for _, count in rows)
-    natural = sum(count for verdict, count in rows if verdict == Verdict.CORRECT_NATURAL)
+    natural = sum(count for verdict, count in rows if verdict in NATURAL_VERDICTS)
     success = sum(count for verdict, count in rows if verdict in SUCCESS_VERDICTS)
     return {
         "attempts_count": total,
@@ -193,7 +198,7 @@ def get_detailed_statistics(db: Session, user_id: uuid.UUID) -> dict:
     ).all()
     error_category_counts = [{"category": category, "count": c} for category, c in error_category_rows]
 
-    natural_case = case((Evaluation.verdict == Verdict.CORRECT_NATURAL, 1), else_=0)
+    natural_case = case((Evaluation.verdict.in_(NATURAL_VERDICTS), 1), else_=0)
     success_case = case((Evaluation.verdict.in_(SUCCESS_VERDICTS), 1), else_=0)
 
     difficulty_rows = db.execute(

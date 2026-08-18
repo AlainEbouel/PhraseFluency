@@ -40,10 +40,15 @@ TIER_WEIGHTS = (0.15, 0.75, 0.10)  # current level, next level up, two up
 
 _BASE_POINTS = {
     Verdict.CORRECT_NATURAL: NATURAL_POINTS,
+    Verdict.CORRECT_WITH_USAGE_NOTE: NATURAL_POINTS,
     Verdict.CORRECT_UNNATURAL: IMPERFECT_POINTS,
     Verdict.CORRECT_WITH_WRITING_ISSUES: IMPERFECT_POINTS,
     Verdict.INCORRECT: INCORRECT_POINTS,
 }
+
+# A usage note is a full success (product decision) — it must score,
+# schedule, and count exactly like CORRECT_NATURAL everywhere below.
+_FULL_SUCCESS_VERDICTS = (Verdict.CORRECT_NATURAL, Verdict.CORRECT_WITH_USAGE_NOTE)
 
 
 def points_for_verdict(verdict: Verdict, hint_used: bool) -> int:
@@ -54,7 +59,7 @@ def points_for_verdict(verdict: Verdict, hint_used: bool) -> int:
 
 
 def is_imperfect(verdict: Verdict, hint_used: bool) -> bool:
-    return hint_used or verdict != Verdict.CORRECT_NATURAL
+    return hint_used or verdict not in _FULL_SUCCESS_VERDICTS
 
 
 def review_interval_for(verdict: Verdict, hint_used: bool) -> int | None:
@@ -137,7 +142,7 @@ def record_attempt(
         mastery_score=new_score,
         times_presented=progress.times_presented + 1,
         natural_count=progress.natural_count
-        + (1 if verdict == Verdict.CORRECT_NATURAL else 0),
+        + (1 if verdict in _FULL_SUCCESS_VERDICTS else 0),
         unnatural_count=progress.unnatural_count
         + (1 if verdict == Verdict.CORRECT_UNNATURAL else 0),
         writing_issue_count=progress.writing_issue_count

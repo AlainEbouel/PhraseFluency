@@ -57,6 +57,8 @@ class EvaluationResult:
     natural_american_english: bool
     writing_issues: list[str]
     corrected_answer: str | None
+    problematic_segment: str | None
+    usage_note_alternative: str | None
     feedback: str
     error_categories: list[str]
     model: str

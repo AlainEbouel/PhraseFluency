@@ -7,17 +7,42 @@ classifications.
 
 ## Initial benchmark
 
-100 curated cases.
+100+ curated cases (104 as of evaluation-v6, after adding the
+`CORRECT_WITH_USAGE_NOTE` category below).
 
 Suggested distribution:
 
 -   25 clearly `CORRECT_NATURAL`
+-   4 clearly `CORRECT_WITH_USAGE_NOTE` (added in evaluation-v6 — see below)
 -   20 `CORRECT_UNNATURAL`
 -   15 `CORRECT_WITH_WRITING_ISSUES`
 -   25 `INCORRECT`
 -   15 difficult/ambiguous edge cases
 
-Include 20 critical "golden" cases.
+Include 20+ critical "golden" cases.
+
+### CORRECT_WITH_USAGE_NOTE (evaluation-v6)
+
+A 5th verdict category, added to stop the evaluator from downgrading an
+acceptable, understandable answer to `CORRECT_UNNATURAL` just because
+another formulation is more frequent or idiomatic. It scores and
+progresses identically to `CORRECT_NATURAL` (a full success) but carries
+an optional, non-judgmental usage tip.
+
+Because `CORRECT_NATURAL` and `CORRECT_WITH_USAGE_NOTE` are both a full
+success, benchmark cases that only assert "this must not be penalized"
+(rather than testing the label itself) set
+`accepts_either_full_success=True` on the `BenchmarkCase` — either verdict
+counts as correct, so the suite doesn't flake between the two whenever the
+model's tie-break lands on one or the other. Cases that specifically test
+the new category's labeling (e.g. the canonical "accepted to change" vs.
+"agreed to change" case) keep the exact expected verdict.
+
+The benchmark also runs a cross-cutting internal-consistency check across
+every case (not just the new ones): if `problematic_segment` reappears
+inside `corrected_answer` for a `CORRECT_UNNATURAL`/`INCORRECT` verdict,
+that is a self-contradiction (the model calling a phrase a problem, then
+reusing it unchanged in its own correction) and fails the benchmark run.
 
 ## Coverage
 

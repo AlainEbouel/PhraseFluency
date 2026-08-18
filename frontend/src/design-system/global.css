@@ -1058,6 +1058,11 @@ button {
   color: var(--status-good);
 }
 
+.verdict-correct_with_usage_note {
+  background: var(--status-good-tint);
+  color: var(--status-good);
+}
+
 .verdict-correct_unnatural {
   background: var(--status-warning-tint);
   color: #7a5b00;
@@ -1132,6 +1137,23 @@ button {
   padding: var(--space-3);
   background: var(--status-serious-tint);
   border-radius: var(--radius-md);
+}
+
+.usage-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--status-good-tint);
+  border-radius: var(--radius-md);
+}
+
+.usage-note svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--status-good);
 }
 
 .writing-issues-detail {
