@@ -18,6 +18,20 @@ DEFAULT_TTS_MODEL = "tts-1"
 DEFAULT_VOICE = "alloy"
 DEFAULT_STT_MODEL = "whisper-1"
 
+# whisper-1 has a strong language-model prior toward grammatically "clean"
+# English: given clear audio of "she talk to him yesterday" it will often
+# transcribe "she talked to him yesterday" — silently fixing the learner's
+# mistake before it ever reaches evaluation. Confirmed empirically (TTS
+# audio of deliberately ungrammatical sentences, transcribed with and
+# without this prompt). A prompt containing disfluent, non-standard-
+# grammar example text (not an instruction — Whisper doesn't follow
+# instructions, only style/vocabulary priming) measurably reduces this:
+# the same sentences transcribed verbatim once this prompt is supplied.
+VERBATIM_STYLE_PROMPT = (
+    "um, he go to the store yesterday, she talk fast, uh, and stuff, "
+    "like he play games all day, I forgot bring my umbrella"
+)
+
 
 class TextToSpeechProvider:
     def __init__(
@@ -55,6 +69,7 @@ class SpeechToTextProvider:
                 model=self.model,
                 file=(filename, audio_bytes),
                 language="en",
+                prompt=VERBATIM_STYLE_PROMPT,
             )
         except OpenAIError as exc:
             logger.warning("OpenAI STT call failed: %s", exc)
