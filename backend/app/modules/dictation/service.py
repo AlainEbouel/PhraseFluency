@@ -23,7 +23,13 @@ from app.modules.dictation.models import DictationAttempt, UserDictationProgress
 from app.modules.evaluations.engine import EvaluationEngine
 from app.modules.evaluations.enums import Verdict
 from app.modules.evaluations.service import get_or_create_reference
-from app.modules.learning.engine import QueueCandidate, review_interval_for, select_next
+from app.modules.learning.engine import (
+    QueueCandidate,
+    advance_series,
+    review_interval_for,
+    select_next,
+)
+from app.modules.learning.service import get_or_create_learning_state
 from app.modules.texts.models import Text, TextVersion
 from app.modules.users.models import User
 from app.shared.mixins import utcnow
@@ -41,6 +47,8 @@ FEEDBACK_BY_VERDICT = {
 class DictationExercise:
     text_id: uuid.UUID
     times_presented: int
+    series_progress: int
+    series_goal: int
 
 
 @dataclass(frozen=True)
@@ -48,6 +56,11 @@ class DictationSubmitResult:
     verdict: Verdict
     corrected_answer: str | None
     feedback: str
+    series_progress: int
+    series_goal: int
+    series_success_count: int
+    series_points: int
+    series_completed: bool
 
 
 def _dictation_sequence(db: Session, user_id: uuid.UUID) -> int:
@@ -109,7 +122,13 @@ def get_next_dictation_exercise(
     get_or_create_reference(db, engine, text_version)
 
     times_presented = progress_by_text[chosen_id].times_presented if chosen_id in progress_by_text else 0
-    return DictationExercise(text_id=chosen_id, times_presented=times_presented)
+    learning_state = get_or_create_learning_state(db, user_id)
+    return DictationExercise(
+        text_id=chosen_id,
+        times_presented=times_presented,
+        series_progress=learning_state.series_progress,
+        series_goal=learning_state.series_goal,
+    )
 
 
 def submit_dictation_answer(
@@ -127,10 +146,18 @@ def submit_dictation_answer(
         )
     )
     if existing is not None:
+        # A replay of an already-committed submission_id — the series
+        # already advanced on the original request.
+        learning_state = get_or_create_learning_state(db, user.id)
         return DictationSubmitResult(
             verdict=existing.verdict,
             corrected_answer=existing.corrected_answer,
             feedback=FEEDBACK_BY_VERDICT[existing.verdict],
+            series_progress=learning_state.series_progress,
+            series_goal=learning_state.series_goal,
+            series_success_count=learning_state.series_success_count,
+            series_points=learning_state.series_points,
+            series_completed=False,
         )
 
     text = db.get(Text, text_id)
@@ -181,8 +208,35 @@ def submit_dictation_answer(
         submission_id=submission_id,
     )
     db.add(attempt)
+
+    learning_state = get_or_create_learning_state(db, user.id)
+    series = advance_series(
+        series_progress=learning_state.series_progress,
+        series_goal=learning_state.series_goal,
+        series_success_count=learning_state.series_success_count,
+        series_points=learning_state.series_points,
+        verdict=verdict,
+        points_awarded=0,  # dictation doesn't score points
+    )
+    if series.completed:
+        learning_state.series_progress = 0
+        learning_state.series_success_count = 0
+        learning_state.series_points = 0
+    else:
+        learning_state.series_progress = series.progress
+        learning_state.series_success_count = series.success_count
+        learning_state.series_points = series.points
+    db.add(learning_state)
+
     db.commit()
 
     return DictationSubmitResult(
-        verdict=verdict, corrected_answer=corrected_answer, feedback=FEEDBACK_BY_VERDICT[verdict]
+        verdict=verdict,
+        corrected_answer=corrected_answer,
+        feedback=FEEDBACK_BY_VERDICT[verdict],
+        series_progress=series.progress,
+        series_goal=learning_state.series_goal,
+        series_success_count=series.success_count,
+        series_points=series.points,
+        series_completed=series.completed,
     )

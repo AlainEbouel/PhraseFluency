@@ -29,7 +29,12 @@ def next_exercise(db: Session = Depends(get_db), user: User = Depends(get_curren
         ) from exc
     if exercise is None:
         return DictationUnavailableOut()
-    return DictationExerciseOut(text_id=exercise.text_id, times_presented=exercise.times_presented)
+    return DictationExerciseOut(
+        text_id=exercise.text_id,
+        times_presented=exercise.times_presented,
+        series_progress=exercise.series_progress,
+        series_goal=exercise.series_goal,
+    )
 
 
 @router.post("/submit", response_model=DictationSubmitOut)
@@ -56,5 +61,12 @@ def submit(
             f"Dictation is temporarily unavailable, please retry: {exc}",
         ) from exc
     return DictationSubmitOut(
-        verdict=result.verdict, corrected_answer=result.corrected_answer, feedback=result.feedback
+        verdict=result.verdict,
+        corrected_answer=result.corrected_answer,
+        feedback=result.feedback,
+        series_progress=result.series_progress,
+        series_goal=result.series_goal,
+        series_success_count=result.series_success_count,
+        series_points=result.series_points,
+        series_completed=result.series_completed,
     )

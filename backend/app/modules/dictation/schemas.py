@@ -8,6 +8,8 @@ from app.modules.evaluations.enums import Verdict
 class DictationExerciseOut(BaseModel):
     text_id: uuid.UUID
     times_presented: int
+    series_progress: int
+    series_goal: int
 
 
 class DictationUnavailableOut(BaseModel):
@@ -25,3 +27,8 @@ class DictationSubmitOut(BaseModel):
     verdict: Verdict
     corrected_answer: str | None
     feedback: str
+    series_progress: int
+    series_goal: int
+    series_success_count: int
+    series_points: int
+    series_completed: bool

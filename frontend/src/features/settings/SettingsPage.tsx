@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import { fetchLevelSettings, updateLevelSettings } from "../../api/learning";
+import {
+  fetchLevelSettings,
+  fetchSeriesSettings,
+  updateLevelSettings,
+  updateSeriesSettings,
+} from "../../api/learning";
 import { updatePreferences } from "../../api/users";
 import { DIFFICULTY_LABELS } from "../../constants/difficulty";
-import type { Difficulty, LevelSettings } from "../../types/learning";
+import type { Difficulty, LevelSettings, SeriesSettings } from "../../types/learning";
 import { useAuth } from "../auth/AuthContext";
 
 const LEVEL_ORDER: Difficulty[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const SERIES_GOAL_OPTIONS = [5, 10, 15, 20, 25, 30];
 
 function boolPref(preferences: Record<string, unknown>, key: string, fallback: boolean): boolean {
   const value = preferences[key];
@@ -23,12 +29,34 @@ export function SettingsPage() {
     suggestedTargetLevel: Difficulty;
   } | null>(null);
   const [isSavingLevelSettings, setIsSavingLevelSettings] = useState(false);
+  const [seriesSettings, setSeriesSettings] = useState<SeriesSettings | null>(null);
+  const [seriesSettingsError, setSeriesSettingsError] = useState<string | null>(null);
+  const [isSavingSeriesSettings, setIsSavingSeriesSettings] = useState(false);
 
   useEffect(() => {
     fetchLevelSettings()
       .then(setLevelSettings)
       .catch(() => setLevelSettingsError("Impossible de charger les réglages de niveau."));
   }, []);
+
+  useEffect(() => {
+    fetchSeriesSettings()
+      .then(setSeriesSettings)
+      .catch(() => setSeriesSettingsError("Impossible de charger l'objectif de série."));
+  }, []);
+
+  async function saveSeriesGoal(goal: number) {
+    setSeriesSettingsError(null);
+    setIsSavingSeriesSettings(true);
+    try {
+      const result = await updateSeriesSettings(goal);
+      setSeriesSettings(result);
+    } catch {
+      setSeriesSettingsError("Impossible de mettre à jour l'objectif pour l'instant.");
+    } finally {
+      setIsSavingSeriesSettings(false);
+    }
+  }
 
   async function saveLevelSettings(update: { targetLevel?: Difficulty; currentLevelShare?: number }) {
     setLevelSettingsError(null);
@@ -111,6 +139,34 @@ export function SettingsPage() {
         </ul>
         {error && <p className="error-text">{error}</p>}
       </div>
+
+      {seriesSettings && (
+        <div className="card">
+          <h2>Objectif quotidien</h2>
+          <p className="explore-hint">
+            Tes exercices sont regroupés en séries de mini-objectifs — un récapitulatif
+            s'affiche à la fin de chaque série. L'ordre et la banque de 100 textes ne changent
+            pas, c'est juste un repère pour avancer par petites étapes.
+          </p>
+          <ul className="kv-list">
+            <li className="kv-row">
+              <span className="kv-row-label">Questions par série</span>
+              <select
+                value={seriesSettings.series_goal}
+                disabled={isSavingSeriesSettings}
+                onChange={(e) => saveSeriesGoal(Number(e.target.value))}
+              >
+                {SERIES_GOAL_OPTIONS.map((goal) => (
+                  <option key={goal} value={goal}>
+                    {goal}
+                  </option>
+                ))}
+              </select>
+            </li>
+          </ul>
+          {seriesSettingsError && <p className="error-text">{seriesSettingsError}</p>}
+        </div>
+      )}
 
       {levelSettings && levelSettings.current_level && (
         <div className="card">

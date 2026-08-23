@@ -44,6 +44,10 @@ CEFR_ORDER = [
 DEFAULT_CURRENT_LEVEL_SHARE = 0.25
 MAX_CURRENT_LEVEL_SHARE = 0.5
 
+DEFAULT_SERIES_GOAL = 10
+MIN_SERIES_GOAL = 1
+MAX_SERIES_GOAL = 50
+
 _BASE_POINTS = {
     Verdict.CORRECT_NATURAL: NATURAL_POINTS,
     Verdict.CORRECT_WITH_USAGE_NOTE: NATURAL_POINTS,
@@ -208,6 +212,40 @@ def bench(progress: TextProgressState) -> TextProgressState:
 def reactivate(progress: TextProgressState) -> TextProgressState:
     """Undo bench(): resume with the exact same progress as before."""
     return replace(progress, status=TextProgressStatus.ACTIVE)
+
+
+@dataclass(frozen=True)
+class SeriesOutcome:
+    progress: int
+    success_count: int
+    points: int
+    completed: bool  # True if THIS submission just finished the series
+
+
+def advance_series(
+    *,
+    series_progress: int,
+    series_goal: int,
+    series_success_count: int,
+    series_points: int,
+    verdict: Verdict,
+    points_awarded: int,
+) -> SeriesOutcome:
+    """One more committed exercise (translation or dictation) toward the
+    user's mini-goal series — a presentation layer over the existing
+    100-text queue, not a new ordering. Caller resets progress/success/
+    points to 0 when `completed` is True, but the RETURNED values are the
+    pre-reset ones so the response can show e.g. "10/10", never "0/10".
+    """
+    progress = series_progress + 1
+    success_count = series_success_count + (1 if verdict in _FULL_SUCCESS_VERDICTS else 0)
+    points = series_points + points_awarded
+    return SeriesOutcome(
+        progress=progress,
+        success_count=success_count,
+        points=points,
+        completed=progress >= series_goal,
+    )
 
 
 def tier_weights(

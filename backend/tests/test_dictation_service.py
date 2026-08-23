@@ -5,8 +5,9 @@ from sqlalchemy import select
 from app.modules.dictation import service
 from app.modules.dictation.models import DictationAttempt, UserDictationProgress
 from app.modules.evaluations.engine import EvaluationEngine
-from app.modules.evaluations.enums import Verdict
-from app.modules.evaluations.ports import ReferenceGenerationResult
+from app.modules.evaluations.enums import InputMethod, Verdict
+from app.modules.evaluations.ports import EvaluationResult, ReferenceGenerationResult
+from app.modules.learning import service as learning_service
 from app.modules.texts.models import Difficulty, ExerciseType, Text, TextVersion
 from app.modules.users.models import User, UserRole
 
@@ -99,6 +100,15 @@ class TestGetNextDictationExercise:
 
         assert exercise.text_id == unseen_text.id
 
+    def test_exposes_the_current_series_progress_and_goal(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+
+        exercise = service.get_next_dictation_exercise(db_session, FakeEngine(), user.id)
+
+        assert exercise.series_progress == 0
+        assert exercise.series_goal == 10
+
 
 class TestSubmitDictationAnswer:
     def test_perfect_transcript_is_correct_natural(self, db_session):
@@ -187,3 +197,114 @@ class TestSubmitDictationAnswer:
         )
 
         assert db_session.get(UserTextProgress, (user.id, text.id)) is None
+
+    def test_a_correct_transcript_advances_the_series_and_counts_as_a_success(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+
+        result = service.submit_dictation_answer(
+            db_session,
+            FakeEngine(),
+            user,
+            text_id=text.id,
+            transcript=REFERENCE_TEXT,
+            submission_id="sub-1",
+        )
+
+        assert result.series_progress == 1
+        assert result.series_goal == 10
+        assert result.series_success_count == 1
+        assert result.series_points == 0  # dictation never scores points
+        assert result.series_completed is False
+
+    def test_an_incorrect_transcript_still_advances_the_series_without_success(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+
+        result = service.submit_dictation_answer(
+            db_session,
+            FakeEngine(),
+            user,
+            text_id=text.id,
+            transcript="Something completely different.",
+            submission_id="sub-1",
+        )
+
+        assert result.series_progress == 1
+        assert result.series_success_count == 0
+
+    def test_reaching_the_goal_completes_and_resets_the_series(self, db_session):
+        user = make_user(db_session)
+        text_a = make_text(db_session)
+        text_b = make_text(db_session)
+        learning_service.update_series_settings(db_session, user.id, series_goal=2)
+
+        first = service.submit_dictation_answer(
+            db_session, FakeEngine(), user, text_id=text_a.id,
+            transcript=REFERENCE_TEXT, submission_id="sub-1",
+        )
+        second = service.submit_dictation_answer(
+            db_session, FakeEngine(), user, text_id=text_b.id,
+            transcript=REFERENCE_TEXT, submission_id="sub-2",
+        )
+
+        assert first.series_completed is False
+        assert second.series_completed is True
+        assert second.series_progress == 2  # reported value is pre-reset
+
+        learning_state = learning_service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == 0
+
+    def test_replaying_a_submission_id_does_not_advance_the_series_again(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+
+        service.submit_dictation_answer(
+            db_session, FakeEngine(), user, text_id=text.id,
+            transcript=REFERENCE_TEXT, submission_id="dup",
+        )
+        replay = service.submit_dictation_answer(
+            db_session, FakeEngine(), user, text_id=text.id,
+            transcript=REFERENCE_TEXT, submission_id="dup",
+        )
+
+        assert replay.series_progress == 1
+
+    def test_translation_and_dictation_share_the_same_series_counter(self, db_session):
+        class _TranslationFakeEngine(FakeEngine):
+            def evaluate(self, request):
+                return EvaluationResult(
+                    verdict=Verdict.CORRECT_NATURAL,
+                    meaning_preserved=True,
+                    grammar_correct=True,
+                    natural_american_english=True,
+                    problematic_segment=None,
+                    writing_issues=[],
+                    corrected_answer=None,
+                    usage_note_alternative=None,
+                    feedback="feedback",
+                    error_categories=[],
+                    model="gpt-4o-mini",
+                    prompt_version="evaluation-v1",
+                    input_tokens=1,
+                    output_tokens=1,
+                )
+
+        user = make_user(db_session)
+        learning_service.choose_level(db_session, user.id, Difficulty.B2)
+        make_text(db_session)
+        dictation_text = make_text(db_session)
+
+        next_ex = learning_service.get_next_exercise(db_session, user)
+        learning_service.submit_answer(
+            db_session, _TranslationFakeEngine(), user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+        service.submit_dictation_answer(
+            db_session, FakeEngine(), user, text_id=dictation_text.id,
+            transcript=REFERENCE_TEXT, submission_id="dict-1",
+        )
+
+        learning_state = learning_service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == 2

@@ -5,6 +5,7 @@ from app.modules.learning.enums import TextProgressStatus
 from app.modules.learning.engine import (
     QueueCandidate,
     TextProgressState,
+    advance_series,
     increase_repetition,
     is_imperfect,
     manually_acquire,
@@ -336,3 +337,71 @@ class TestPrioritizedTiers:
         order = prioritized_tiers({Difficulty.C2: 1.0}, active_counts={Difficulty.C2: 50})
 
         assert order == [Difficulty.C2]
+
+
+class TestAdvanceSeries:
+    def test_increments_progress_and_points_without_completing(self):
+        outcome = advance_series(
+            series_progress=2,
+            series_goal=10,
+            series_success_count=1,
+            series_points=4,
+            verdict=Verdict.CORRECT_NATURAL,
+            points_awarded=2,
+        )
+
+        assert outcome.progress == 3
+        assert outcome.success_count == 2
+        assert outcome.points == 6
+        assert outcome.completed is False
+
+    def test_usage_note_counts_as_success_like_natural(self):
+        outcome = advance_series(
+            series_progress=0,
+            series_goal=10,
+            series_success_count=0,
+            series_points=0,
+            verdict=Verdict.CORRECT_WITH_USAGE_NOTE,
+            points_awarded=2,
+        )
+
+        assert outcome.success_count == 1
+
+    def test_unnatural_and_incorrect_do_not_count_as_success(self):
+        for verdict in (Verdict.CORRECT_UNNATURAL, Verdict.CORRECT_WITH_WRITING_ISSUES, Verdict.INCORRECT):
+            outcome = advance_series(
+                series_progress=0,
+                series_goal=10,
+                series_success_count=0,
+                series_points=0,
+                verdict=verdict,
+                points_awarded=0,
+            )
+            assert outcome.success_count == 0
+
+    def test_reaching_the_goal_marks_completed(self):
+        outcome = advance_series(
+            series_progress=9,
+            series_goal=10,
+            series_success_count=5,
+            series_points=12,
+            verdict=Verdict.CORRECT_NATURAL,
+            points_awarded=2,
+        )
+
+        assert outcome.progress == 10
+        assert outcome.completed is True
+
+    def test_zero_points_awarded_still_advances_progress(self):
+        # Dictation never scores points but must still advance the series.
+        outcome = advance_series(
+            series_progress=0,
+            series_goal=5,
+            series_success_count=0,
+            series_points=0,
+            verdict=Verdict.CORRECT_NATURAL,
+            points_awarded=0,
+        )
+
+        assert outcome.progress == 1
+        assert outcome.points == 0

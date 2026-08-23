@@ -32,6 +32,8 @@ from app.modules.learning.schemas import (
     ProgressOut,
     ReevaluateOut,
     RepetitionOut,
+    SeriesSettingsIn,
+    SeriesSettingsOut,
     SubmitIn,
     SubmitOut,
 )
@@ -86,6 +88,25 @@ def update_level_settings(
     return LevelSettingsOut.model_validate(result)
 
 
+@router.get("/series-settings", response_model=SeriesSettingsOut)
+def get_series_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    learning_state = service.get_or_create_learning_state(db, user.id)
+    return SeriesSettingsOut.model_validate(learning_state)
+
+
+@router.patch("/series-settings", response_model=SeriesSettingsOut)
+def update_series_settings(
+    payload: SeriesSettingsIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    learning_state = service.update_series_settings(db, user.id, series_goal=payload.series_goal)
+    return SeriesSettingsOut.model_validate(learning_state)
+
+
 @router.get("/next", response_model=ExerciseOut | LevelRequiredOut | NoExerciseAvailableOut)
 def next_exercise(
     db: Session = Depends(get_db),
@@ -116,6 +137,8 @@ def next_exercise(
         hint_level=hint_level,
         hints_revealed=list(reference.hints[:hint_level]),
         progress=_progress_out(next_ex.progress),
+        series_progress=next_ex.learning_state.series_progress,
+        series_goal=next_ex.learning_state.series_goal,
     )
 
 
@@ -212,6 +235,11 @@ def submit(
         progress=_progress_out(result.progress),
         new_tests_created=result.new_tests_created,
         difficulty=result.difficulty,
+        series_progress=result.series_progress,
+        series_goal=result.series_goal,
+        series_success_count=result.series_success_count,
+        series_points=result.series_points,
+        series_completed=result.series_completed,
     )
 
 

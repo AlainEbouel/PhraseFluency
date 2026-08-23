@@ -10,6 +10,7 @@ from app.modules.learning.engine import (
     DEFAULT_CURRENT_LEVEL_SHARE,
     DEFAULT_REQUIRED_NATURAL_EQUIVALENTS,
     DEFAULT_REQUIRED_SCORE,
+    DEFAULT_SERIES_GOAL,
 )
 from app.modules.learning.enums import TextProgressStatus
 from app.modules.texts.models import Difficulty
@@ -68,3 +69,7 @@ class UserLearningState(Base):
     )
     current_level_share: Mapped[float] = mapped_column(Float, default=DEFAULT_CURRENT_LEVEL_SHARE)
     last_review_at_exercise: Mapped[int | None] = mapped_column(Integer, default=None)
+    series_goal: Mapped[int] = mapped_column(Integer, default=DEFAULT_SERIES_GOAL)
+    series_progress: Mapped[int] = mapped_column(Integer, default=0)
+    series_success_count: Mapped[int] = mapped_column(Integer, default=0)
+    series_points: Mapped[int] = mapped_column(Integer, default=0)

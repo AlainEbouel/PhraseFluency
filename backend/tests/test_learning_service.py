@@ -712,6 +712,157 @@ class TestSubmitAnswer:
         assert len(test_texts) == 25
 
 
+class TestSeriesProgress:
+    def test_a_committed_answer_advances_the_series(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        assert result.series_progress == 1
+        assert result.series_goal == 10  # default, set by choose_level in make_user
+        assert result.series_success_count == 1
+        assert result.series_points == 2
+        assert result.series_completed is False
+
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == 1
+
+    def test_a_pending_retry_offer_does_not_advance_the_series(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_UNNATURAL)])
+
+        result = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        assert result.committed is False
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == 0
+
+    def test_reaching_the_goal_completes_and_resets_the_series(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        service.update_series_settings(db_session, user.id, series_goal=2)
+        engine = FakeEngine(
+            evaluation_results=[eval_result(Verdict.CORRECT_NATURAL), eval_result(Verdict.CORRECT_NATURAL)]
+        )
+
+        results = []
+        for _ in range(2):
+            next_ex = service.get_next_exercise(db_session, user)
+            results.append(
+                service.submit_answer(
+                    db_session, engine, user, text_id=next_ex.progress.text_id,
+                    user_answer="answer", input_method=InputMethod.KEYBOARD,
+                    submission_id=str(uuid.uuid4()),
+                )
+            )
+
+        assert results[0].series_completed is False
+        assert results[0].series_progress == 1
+        assert results[1].series_completed is True
+        assert results[1].series_progress == 2  # reported value is pre-reset
+        assert results[1].series_success_count == 2
+        assert results[1].series_points == 4
+
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == 0
+        assert learning_state.series_success_count == 0
+        assert learning_state.series_points == 0
+
+    def test_skip_does_not_advance_the_series(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+
+        service.skip_current(db_session, user.id, next_ex.learning_state)
+
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == 0
+
+    def test_reevaluation_does_not_advance_the_series(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+        service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+        progress_after_submit = service.get_or_create_learning_state(db_session, user.id).series_progress
+
+        engine.evaluation_results = [eval_result(Verdict.CORRECT_NATURAL)]
+        engine.evaluate_calls = 0
+        service.reevaluate_text(db_session, engine, user, next_ex.progress.text_id)
+
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == progress_after_submit
+
+    def test_explore_alternative_does_not_advance_the_series(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+
+        service.explore_alternative(db_session, engine, user, text.id, "some answer")
+
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == 0
+
+    def test_replaying_a_submission_id_does_not_advance_the_series_again(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+        submission_id = str(uuid.uuid4())
+
+        service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=submission_id,
+        )
+        replay = service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=submission_id,
+        )
+
+        assert replay.series_progress == 1
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.series_progress == 1
+
+
+class TestUpdateSeriesSettings:
+    def test_changing_the_goal_resets_progress(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+        service.submit_answer(
+            db_session, engine, user, text_id=next_ex.progress.text_id,
+            user_answer="answer", input_method=InputMethod.KEYBOARD,
+            submission_id=str(uuid.uuid4()),
+        )
+
+        learning_state = service.update_series_settings(db_session, user.id, series_goal=20)
+
+        assert learning_state.series_goal == 20
+        assert learning_state.series_progress == 0
+        assert learning_state.series_success_count == 0
+        assert learning_state.series_points == 0
+
+
 class TestWritingIssueUnlimitedRetry:
     def test_does_not_commit_by_default(self, db_session):
         user = make_user(db_session)

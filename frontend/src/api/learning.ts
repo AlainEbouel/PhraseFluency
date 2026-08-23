@@ -9,6 +9,7 @@ import type {
   NoExerciseAvailable,
   PendingSubmitResult,
   Progress,
+  SeriesSettings,
   SubmitResult,
 } from "../types/learning";
 
@@ -36,6 +37,17 @@ export function updateLevelSettings(
       target_level: update.targetLevel ?? null,
       current_level_share: update.currentLevelShare ?? null,
     }),
+  });
+}
+
+export function fetchSeriesSettings(): Promise<SeriesSettings> {
+  return apiRequest("/api/v1/learning/series-settings");
+}
+
+export function updateSeriesSettings(seriesGoal: number): Promise<SeriesSettings> {
+  return apiRequest("/api/v1/learning/series-settings", {
+    method: "PATCH",
+    body: JSON.stringify({ series_goal: seriesGoal }),
   });
 }
 

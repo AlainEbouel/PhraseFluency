@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from app.modules.evaluations.enums import InputMethod, Verdict
 from app.modules.learning.enums import TextProgressStatus
+from app.modules.learning.engine import MAX_SERIES_GOAL, MIN_SERIES_GOAL
 from app.modules.texts.models import Difficulty
 
 
@@ -30,6 +31,8 @@ class ExerciseOut(BaseModel):
     hint_level: int
     hints_revealed: list[str]
     progress: ProgressOut
+    series_progress: int
+    series_goal: int
 
 
 class NoExerciseAvailableOut(BaseModel):
@@ -63,6 +66,16 @@ class LevelSettingsRejectedOut(BaseModel):
     accepted: bool = False
     message: str
     suggested_target_level: Difficulty
+
+
+class SeriesSettingsIn(BaseModel):
+    series_goal: int = Field(ge=MIN_SERIES_GOAL, le=MAX_SERIES_GOAL)
+
+
+class SeriesSettingsOut(BaseModel):
+    series_goal: int
+
+    model_config = {"from_attributes": True}
 
 
 class DraftIn(BaseModel):
@@ -103,6 +116,11 @@ class SubmitOut(BaseModel):
     progress: ProgressOut
     new_tests_created: int
     difficulty: Difficulty
+    series_progress: int
+    series_goal: int
+    series_success_count: int
+    series_points: int
+    series_completed: bool
 
 
 class PendingSubmitOut(BaseModel):

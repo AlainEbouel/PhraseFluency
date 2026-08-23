@@ -922,6 +922,20 @@ button {
   margin-bottom: var(--space-2);
 }
 
+.series-recap {
+  text-align: center;
+}
+
+.series-recap h2 {
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  margin-bottom: var(--space-3);
+}
+
+.series-recap p {
+  margin-bottom: var(--space-4);
+}
+
 .french-text {
   font-size: var(--text-2xl);
   margin: 0 0 var(--space-5) 0;

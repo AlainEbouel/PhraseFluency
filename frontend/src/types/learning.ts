@@ -38,6 +38,8 @@ export interface Exercise {
   hint_level: number;
   hints_revealed: string[];
   progress: Progress;
+  series_progress: number;
+  series_goal: number;
 }
 
 export interface NoExerciseAvailable {
@@ -64,6 +66,11 @@ export interface SubmitResult {
   progress: Progress;
   new_tests_created: number;
   difficulty: Difficulty;
+  series_progress: number;
+  series_goal: number;
+  series_success_count: number;
+  series_points: number;
+  series_completed: boolean;
 }
 
 export interface PendingSubmitResult {
@@ -85,6 +92,10 @@ export interface LevelSettingsRejected {
   accepted: false;
   message: string;
   suggested_target_level: Difficulty;
+}
+
+export interface SeriesSettings {
+  series_goal: number;
 }
 
 export interface ExploreResult {

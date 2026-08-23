@@ -25,8 +25,11 @@ from app.modules.learning.engine import (
     DEFAULT_CURRENT_LEVEL_SHARE,
     MAX_CURRENT_LEVEL_SHARE,
     MAX_RETRIES,
+    MAX_SERIES_GOAL,
+    MIN_SERIES_GOAL,
     QueueCandidate,
     TextProgressState,
+    advance_series,
     bench,
     disable,
     increase_repetition,
@@ -159,6 +162,21 @@ def update_level_settings(
     db.flush()
 
     rebalance_active_bank(db, user_id)
+    db.commit()
+    db.refresh(learning_state)
+    return learning_state
+
+
+def update_series_settings(db: Session, user_id: uuid.UUID, *, series_goal: int) -> UserLearningState:
+    """Change the mini-goal series length. Always starts a fresh series
+    immediately under the new goal — simpler than trying to reconcile
+    partial progress against a different-sized goal."""
+    learning_state = get_or_create_learning_state(db, user_id)
+    learning_state.series_goal = series_goal
+    learning_state.series_progress = 0
+    learning_state.series_success_count = 0
+    learning_state.series_points = 0
+    db.add(learning_state)
     db.commit()
     db.refresh(learning_state)
     return learning_state
@@ -530,6 +548,11 @@ class SubmitResult:
     points_awarded: int
     new_tests_created: int
     difficulty: Difficulty
+    series_progress: int
+    series_goal: int
+    series_success_count: int
+    series_points: int
+    series_completed: bool
     committed: bool = True
 
 
@@ -558,6 +581,11 @@ def _submit_result_from_existing_attempt(db: Session, attempt: Attempt) -> Submi
         select(LinguisticReference).where(LinguisticReference.text_version_id == text_version.id)
     )
     progress = db.get(UserTextProgress, (attempt.user_id, text_version.text_id))
+    # A replay of an already-committed submission_id (e.g. a network
+    # retry) — the series already advanced on the original request, so
+    # just reflect the current counters without advancing them again or
+    # re-triggering the recap.
+    learning_state = get_or_create_learning_state(db, attempt.user_id)
     return SubmitResult(
         evaluation=evaluation,
         reference=reference,
@@ -565,6 +593,11 @@ def _submit_result_from_existing_attempt(db: Session, attempt: Attempt) -> Submi
         points_awarded=points_for_verdict(evaluation.verdict, attempt.hint_used),
         new_tests_created=0,
         difficulty=text_version.difficulty,
+        series_progress=learning_state.series_progress,
+        series_goal=learning_state.series_goal,
+        series_success_count=learning_state.series_success_count,
+        series_points=learning_state.series_points,
+        series_completed=False,
     )
 
 
@@ -696,6 +729,23 @@ def submit_answer(
     learning_state.current_text_id = None
     learning_state.current_draft = None
     learning_state.current_hint_level = 0
+
+    series = advance_series(
+        series_progress=learning_state.series_progress,
+        series_goal=learning_state.series_goal,
+        series_success_count=learning_state.series_success_count,
+        series_points=learning_state.series_points,
+        verdict=result.verdict,
+        points_awarded=outcome.points_awarded,
+    )
+    if series.completed:
+        learning_state.series_progress = 0
+        learning_state.series_success_count = 0
+        learning_state.series_points = 0
+    else:
+        learning_state.series_progress = series.progress
+        learning_state.series_success_count = series.success_count
+        learning_state.series_points = series.points
     db.add(learning_state)
 
     new_tests: list[Test] = []
@@ -714,6 +764,11 @@ def submit_answer(
         points_awarded=outcome.points_awarded,
         new_tests_created=len(new_tests),
         difficulty=text_version.difficulty,
+        series_progress=series.progress,
+        series_goal=learning_state.series_goal,
+        series_success_count=series.success_count,
+        series_points=series.points,
+        series_completed=series.completed,
     )
 
 

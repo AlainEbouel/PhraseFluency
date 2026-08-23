@@ -58,6 +58,7 @@ type Phase =
   | "pending-writing-issue"
   | "pending-retry-offer"
   | "feedback"
+  | "series-recap"
   | "load-error";
 
 export function LearningPage() {
@@ -90,6 +91,11 @@ export function LearningPage() {
   const [dictationResult, setDictationResult] = useState<DictationSubmitResult | null>(null);
   const [isDictationSubmitting, setIsDictationSubmitting] = useState(false);
   const [dictationError, setDictationError] = useState<string | null>(null);
+  const [seriesRecap, setSeriesRecap] = useState<{
+    goal: number;
+    successCount: number;
+    points: number;
+  } | null>(null);
   const { user } = useAuth();
   const draftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const explanationRef = useRef<HTMLDivElement | null>(null);
@@ -129,6 +135,7 @@ export function LearningPage() {
     setDictationTranscript("");
     setDictationResult(null);
     setDictationError(null);
+    setSeriesRecap(null);
 
     const kind = pickExerciseKind(user?.preferences);
     setExerciseKind(kind);
@@ -236,6 +243,15 @@ export function LearningPage() {
         setPendingResult(null);
         setHintsDisabledForRetry(false);
         setRetryCount(0);
+        setSeriesRecap(
+          result.series_completed
+            ? {
+                goal: result.series_goal,
+                successCount: result.series_success_count,
+                points: result.series_points,
+              }
+            : null
+        );
         setPhase("feedback");
       } else {
         playSound("pending");
@@ -284,6 +300,15 @@ export function LearningPage() {
             : "unnatural"
       );
       setDictationResult(result);
+      setSeriesRecap(
+        result.series_completed
+          ? {
+              goal: result.series_goal,
+              successCount: result.series_success_count,
+              points: result.series_points,
+            }
+          : null
+      );
       setPhase("feedback");
     } catch (err) {
       setDictationError(
@@ -310,6 +335,22 @@ export function LearningPage() {
     setRetryCount(next);
     setHintsDisabledForRetry(next >= 2 ? true : pendingResult.verdict === "CORRECT_UNNATURAL");
     setPhase("answering");
+  }
+
+  // Continue after a committed feedback screen: show the series recap
+  // first if this exercise just completed one, otherwise go straight to
+  // the next exercise as usual.
+  function handleContinue() {
+    if (seriesRecap) {
+      setPhase("series-recap");
+      return;
+    }
+    loadNext();
+  }
+
+  function handleStartNewSeries() {
+    setSeriesRecap(null);
+    loadNext();
   }
 
   async function handleSkip() {
@@ -445,12 +486,35 @@ export function LearningPage() {
     return <p>{noExerciseMessage}</p>;
   }
 
+  if (phase === "series-recap" && seriesRecap) {
+    return (
+      <div className="learning-screen">
+        <div className="card series-recap">
+          <h2>Série terminée !</h2>
+          <p>
+            {seriesRecap.successCount}/{seriesRecap.goal} réponses réussies
+            {seriesRecap.points > 0 ? ` · ${seriesRecap.points} point(s) gagné(s)` : ""}
+          </p>
+          <button type="button" className="primary-button" onClick={handleStartNewSeries}>
+            Commencer une nouvelle série
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (exerciseKind === "dictation") {
     if (!dictationExercise && phase !== "feedback") return null;
 
     return (
       <div className={`learning-screen${phase === "feedback" ? " learning-screen-wide" : ""}`}>
         <h2 className="french-text">🎧 Compréhension orale</h2>
+        {(dictationResult ?? dictationExercise) && (
+          <p className="progress-indicator">
+            Série : {dictationResult?.series_progress ?? dictationExercise?.series_progress}/
+            {dictationResult?.series_goal ?? dictationExercise?.series_goal}
+          </p>
+        )}
 
         {phase === "answering" && dictationExercise && (
           <div className="exercise-panel">
@@ -513,7 +577,7 @@ export function LearningPage() {
             )}
 
             <div className="feedback-actions">
-              <button type="button" className="primary-button" onClick={loadNext}>
+              <button type="button" className="primary-button" onClick={handleContinue}>
                 Suivant
               </button>
             </div>
@@ -528,6 +592,10 @@ export function LearningPage() {
   return (
     <div className={`learning-screen${phase === "feedback" ? " learning-screen-wide" : ""}`}>
       {exercise.is_review && <span className="review-badge">Révision</span>}
+      <p className="progress-indicator">
+        Série : {feedback?.series_progress ?? exercise.series_progress}/
+        {feedback?.series_goal ?? exercise.series_goal}
+      </p>
       <Meter
         value={exercise.progress.natural_count}
         max={exercise.progress.required_natural_equivalents}
@@ -764,7 +832,7 @@ export function LearningPage() {
               <button type="button" onClick={() => setShowChat((v) => !v)}>
                 Demander à l'IA
               </button>
-              <button type="button" className="primary-button" onClick={loadNext}>
+              <button type="button" className="primary-button" onClick={handleContinue}>
                 Suivant
               </button>
             </div>

@@ -3,6 +3,8 @@ import { apiRequest } from "./client";
 export interface DictationExercise {
   text_id: string;
   times_presented: number;
+  series_progress: number;
+  series_goal: number;
 }
 
 export interface DictationUnavailable {
@@ -14,6 +16,11 @@ export interface DictationSubmitResult {
   verdict: string;
   corrected_answer: string | null;
   feedback: string;
+  series_progress: number;
+  series_goal: number;
+  series_success_count: number;
+  series_points: number;
+  series_completed: boolean;
 }
 
 export function fetchNextDictation(): Promise<DictationExercise | DictationUnavailable> {
