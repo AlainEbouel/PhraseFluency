@@ -12,6 +12,7 @@ from app.modules.evaluations.ports import (
     EvaluationRequest,
     GrammarExplanationRequest,
     ReferenceGenerationRequest,
+    SourceTextAssessmentRequest,
     WeaknessSuggestionsRequest,
 )
 
@@ -19,6 +20,7 @@ REFERENCE_PROMPT_VERSION = "reference-v1"
 EVALUATION_PROMPT_VERSION = "evaluation-v9"
 EXPLANATION_PROMPT_VERSION = "explanation-v1"
 WEAKNESS_SUGGESTIONS_PROMPT_VERSION = "weakness-v1"
+TEXT_SENSIBILITY_PROMPT_VERSION = "text-sensibility-v1"
 
 REFERENCE_SYSTEM_PROMPT = """You are a linguistic content expert for PhraseFluency, an app that \
 teaches natural American English through French-to-English production practice.
@@ -336,6 +338,36 @@ def build_explanation_user_prompt(request: GrammarExplanationRequest) -> str:
         f"Preferred translation: {request.preferred_translation}"
         f"{answer_line}"
     )
+
+
+TEXT_SENSIBILITY_SYSTEM_PROMPT = """You are reviewing French source sentences used in \
+PhraseFluency, a French-to-English production practice app. A learner has flagged the given \
+French sentence as not making sense, and you must judge whether that flag is justified.
+
+The question is narrow: does this sentence have a normal, complete, usual meaning in French — \
+not whether it is elegant, common, or the phrasing you yourself would choose. Favor judging the \
+sentence as having normal meaning whenever a competent French speaker could parse it and \
+recover a clear, complete idea, even if the topic, register, or vocabulary is unusual. A rare \
+word, a formal or technical register, an uncommon (but grammatical) turn of phrase, or a \
+sentence about an unusual topic are NOT reasons to say it lacks normal meaning — those are \
+exactly the kind of correct-but-superficially-odd sentences that must be judged as sensible.
+
+Only judge the sentence as NOT having normal meaning when it is genuinely broken: cut off \
+mid-word or mid-thought (e.g. "Je mange du p" — "p" is not a French word, the sentence is \
+incomplete), missing essential words so no complete idea can be recovered, garbled/scrambled \
+word order that isn't valid French syntax, or effectively word salad. The bar is the same one a \
+generous native French speaker would apply: "can I tell what this is trying to say, as a \
+complete idea?" — not "is this how I would phrase it?"
+
+Report:
+- explanation: one short sentence stating what the sentence means (if it has normal meaning) or \
+precisely what is broken about it (if it does not) — never vague, name the actual problem.
+- has_normal_meaning: true if a competent French speaker would recover a clear, complete idea; \
+false only for a genuinely broken/incomplete/nonsensical sentence as described above."""
+
+
+def build_text_sensibility_user_prompt(request: SourceTextAssessmentRequest) -> str:
+    return f"French text: {request.french_text}"
 
 
 WEAKNESS_SUGGESTIONS_SYSTEM_PROMPT = """You are an encouraging but precise English-language \

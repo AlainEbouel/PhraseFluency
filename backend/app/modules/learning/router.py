@@ -23,6 +23,8 @@ from app.modules.learning.schemas import (
     ExploreIn,
     ExploreOut,
     HintOut,
+    InsertionSettingsIn,
+    InsertionSettingsOut,
     LevelRequiredOut,
     LevelSettingsIn,
     LevelSettingsOut,
@@ -32,6 +34,7 @@ from app.modules.learning.schemas import (
     ProgressOut,
     ReevaluateOut,
     RepetitionOut,
+    ReportTextOut,
     SeriesSettingsIn,
     SeriesSettingsOut,
     SubmitIn,
@@ -105,6 +108,27 @@ def update_series_settings(
 ):
     learning_state = service.update_series_settings(db, user.id, series_goal=payload.series_goal)
     return SeriesSettingsOut.model_validate(learning_state)
+
+
+@router.get("/insertion-settings", response_model=InsertionSettingsOut)
+def get_insertion_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    learning_state = service.get_or_create_learning_state(db, user.id)
+    return InsertionSettingsOut.model_validate(learning_state)
+
+
+@router.patch("/insertion-settings", response_model=InsertionSettingsOut)
+def update_insertion_settings(
+    payload: InsertionSettingsIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    learning_state = service.update_insertion_settings(
+        db, user.id, new_text_insertion_gap=payload.new_text_insertion_gap
+    )
+    return InsertionSettingsOut.model_validate(learning_state)
 
 
 @router.get("/next", response_model=ExerciseOut | LevelRequiredOut | NoExerciseAvailableOut)
@@ -291,6 +315,25 @@ def reevaluate(
         corrected_answer=evaluation.corrected_answer,
         usage_note_alternative=evaluation.usage_note_alternative,
     )
+
+
+@router.post("/{text_id}/report", response_model=ReportTextOut)
+def report(
+    text_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    engine = get_evaluation_engine()
+    try:
+        result = service.report_text(db, engine, user, text_id)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    except EvaluationEngineError as exc:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            f"Report review is temporarily unavailable, please retry: {exc}",
+        ) from exc
+    return ReportTextOut(confirmed=result.confirmed)
 
 
 @router.get("/{text_id}/explanation", response_model=ExplanationOut)

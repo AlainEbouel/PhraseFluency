@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(docker build *)",
+      "Bash(docker rmi *)",
+      "Bash(curl -s http://localhost:8000/ready)",
+      "Bash(ssh aebouel@192.168.40.224 \"cd ~/PhraseFluency && ./scripts/deploy.sh\")",
+      "Bash(curl -s -o /dev/null -w \"https://phrasefluency.aebouel.org/ -> %{http_code}\\\\n\" https://phrasefluency.aebouel.org/)",
+      "Bash(.venv/bin/alembic -c alembic.ini upgrade head)",
+      "Bash(.venv/bin/python -c \"import app.main\")",
+      "Bash(.venv/bin/python -m pytest tests/test_learning_engine.py -q -k \"AdvanceSeries\")",
+      "Bash(.venv/bin/python -m pytest tests/test_learning_service.py -q -k \"SeriesProgress or UpdateSeriesSettings\")",
+      "Bash(.venv/bin/python -m pytest tests/test_dictation_service.py -q)"
+    ]
+  }
+}

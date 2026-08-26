@@ -12,6 +12,7 @@ import {
   increaseRepetition,
   acquireText,
   reevaluate,
+  reportText,
   requestHint,
   saveDraft,
   skipExercise,
@@ -23,6 +24,7 @@ import type {
   Exercise,
   ExploreResult,
   PendingSubmitResult,
+  ReportTextResult,
   SubmitResult,
 } from "../../types/learning";
 import { AudioButton } from "../../components/AudioButton";
@@ -59,6 +61,7 @@ type Phase =
   | "pending-retry-offer"
   | "feedback"
   | "series-recap"
+  | "text-reported"
   | "load-error";
 
 export function LearningPage() {
@@ -85,6 +88,10 @@ export function LearningPage() {
   const [isChoosingLevel, setIsChoosingLevel] = useState(false);
   const [levelError, setLevelError] = useState<string | null>(null);
   const [showAcquireConfirm, setShowAcquireConfirm] = useState(false);
+  const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportResult, setReportResult] = useState<ReportTextResult | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [exerciseKind, setExerciseKind] = useState<ExerciseKind>("translation");
   const [dictationExercise, setDictationExercise] = useState<DictationExercise | null>(null);
   const [dictationTranscript, setDictationTranscript] = useState("");
@@ -136,6 +143,8 @@ export function LearningPage() {
     setDictationResult(null);
     setDictationError(null);
     setSeriesRecap(null);
+    setReportResult(null);
+    setReportError(null);
 
     const kind = pickExerciseKind(user?.preferences);
     setExerciseKind(kind);
@@ -386,6 +395,22 @@ export function LearningPage() {
     }
   }
 
+  async function handleReport() {
+    if (!exercise) return;
+    setShowReportConfirm(false);
+    setIsReporting(true);
+    setReportError(null);
+    try {
+      const result = await reportText(exercise.text_id);
+      setReportResult(result);
+      setPhase("text-reported");
+    } catch {
+      setReportError("Impossible de signaler ce texte pour le moment. Réessayez.");
+    } finally {
+      setIsReporting(false);
+    }
+  }
+
   async function handleReevaluate() {
     if (!exercise) return;
     try {
@@ -497,6 +522,24 @@ export function LearningPage() {
           </p>
           <button type="button" className="primary-button" onClick={handleStartNewSeries}>
             Commencer une nouvelle série
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "text-reported" && reportResult) {
+    return (
+      <div className="learning-screen">
+        <div className="card series-recap">
+          <h2>{reportResult.confirmed ? "Merci pour le signalement" : "Texte examiné"}</h2>
+          <p>
+            {reportResult.confirmed
+              ? "Ce texte n'avait effectivement pas de sens usuel. Il a été retiré et ne sera plus jamais proposé."
+              : "Ce texte a été examiné et jugé correct : il a bien un sens usuel en français."}
+          </p>
+          <button type="button" className="primary-button" onClick={loadNext}>
+            Continuer
           </button>
         </div>
       </div>
@@ -640,10 +683,28 @@ export function LearningPage() {
             <button type="button" onClick={handleRepetition}>
               +1 répétition
             </button>
+            <button
+              type="button"
+              onClick={() => setShowReportConfirm(true)}
+              disabled={isReporting}
+            >
+              Signaler : ce texte n'a pas de sens
+            </button>
           </div>
 
           {recorder.error && <p className="error-text">{recorder.error}</p>}
           {repetitionMessage && <p className="success-text">{repetitionMessage}</p>}
+          {reportError && <p className="error-text">{reportError}</p>}
+
+          {showReportConfirm && (
+            <ConfirmDialog
+              title="Signaler ce texte comme n'ayant pas de sens ?"
+              message="Le texte sera évalué par l'IA. S'il est confirmé incohérent (par exemple incomplet ou tronqué), il sera retiré définitivement et un autre texte vous sera proposé. S'il a bien un sens usuel, rien ne changera."
+              confirmLabel="Signaler"
+              onConfirm={handleReport}
+              onCancel={() => setShowReportConfirm(false)}
+            />
+          )}
 
           {hintsRevealed.length > 0 && (
             <ul className="hints-list">

@@ -84,6 +84,21 @@ class GrammarExplanationResult:
 
 
 @dataclass(frozen=True)
+class SourceTextAssessmentRequest:
+    french_text: str
+
+
+@dataclass(frozen=True)
+class SourceTextAssessmentResult:
+    has_normal_meaning: bool
+    explanation: str
+    model: str
+    prompt_version: str
+    input_tokens: int
+    output_tokens: int
+
+
+@dataclass(frozen=True)
 class WeaknessCategoryContext:
     category: str
     count: int

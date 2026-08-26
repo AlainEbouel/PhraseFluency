@@ -48,6 +48,10 @@ DEFAULT_SERIES_GOAL = 10
 MIN_SERIES_GOAL = 1
 MAX_SERIES_GOAL = 50
 
+DEFAULT_NEW_TEXT_INSERTION_GAP = 3
+MIN_NEW_TEXT_INSERTION_GAP = 0
+MAX_NEW_TEXT_INSERTION_GAP = 20
+
 _BASE_POINTS = {
     Verdict.CORRECT_NATURAL: NATURAL_POINTS,
     Verdict.CORRECT_WITH_USAGE_NOTE: NATURAL_POINTS,
@@ -212,6 +216,30 @@ def bench(progress: TextProgressState) -> TextProgressState:
 def reactivate(progress: TextProgressState) -> TextProgressState:
     """Undo bench(): resume with the exact same progress as before."""
     return replace(progress, status=TextProgressStatus.ACTIVE)
+
+
+def insertion_rotation_position(
+    active_positions: list[int], gap: int
+) -> tuple[int, int | None]:
+    """Where to place a freshly-activated (never-seen-before) text so it
+    resurfaces after `gap` other active texts, instead of at the very
+    back of the rotation (product decision: inject novelty early rather
+    than after up to ~100 exercises).
+
+    Returns (new_position, shift_from). When shift_from is not None, every
+    existing active row with rotation_position >= shift_from must be
+    bumped by +1 first to make room — the new row then reuses that exact
+    value, so exactly `gap` texts remain strictly ahead of it.
+
+    Degrades to today's append-at-the-back behavior (shift_from=None)
+    whenever there are `gap` or fewer active texts — so the initial bulk
+    fill (onboarding) needs no special case.
+    """
+    sorted_positions = sorted(active_positions)
+    if len(sorted_positions) <= gap:
+        return (sorted_positions[-1] if sorted_positions else 0) + 1, None
+    insert_at = sorted_positions[gap]
+    return insert_at, insert_at
 
 
 @dataclass(frozen=True)

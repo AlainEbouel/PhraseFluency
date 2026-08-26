@@ -3,12 +3,14 @@ import type {
   Difficulty,
   Exercise,
   ExploreResult,
+  InsertionSettings,
   LevelRequired,
   LevelSettings,
   LevelSettingsRejected,
   NoExerciseAvailable,
   PendingSubmitResult,
   Progress,
+  ReportTextResult,
   SeriesSettings,
   SubmitResult,
 } from "../types/learning";
@@ -49,6 +51,21 @@ export function updateSeriesSettings(seriesGoal: number): Promise<SeriesSettings
     method: "PATCH",
     body: JSON.stringify({ series_goal: seriesGoal }),
   });
+}
+
+export function fetchInsertionSettings(): Promise<InsertionSettings> {
+  return apiRequest("/api/v1/learning/insertion-settings");
+}
+
+export function updateInsertionSettings(newTextInsertionGap: number): Promise<InsertionSettings> {
+  return apiRequest("/api/v1/learning/insertion-settings", {
+    method: "PATCH",
+    body: JSON.stringify({ new_text_insertion_gap: newTextInsertionGap }),
+  });
+}
+
+export function reportText(textId: string): Promise<ReportTextResult> {
+  return apiRequest(`/api/v1/learning/${textId}/report`, { method: "POST" });
 }
 
 export function saveDraft(draft: string): Promise<void> {

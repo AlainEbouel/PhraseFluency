@@ -18,6 +18,8 @@ from app.modules.evaluations.ports import (
     PatternSuggestion,
     ReferenceGenerationRequest,
     ReferenceGenerationResult,
+    SourceTextAssessmentRequest,
+    SourceTextAssessmentResult,
     WeaknessSuggestion,
     WeaknessSuggestionsRequest,
     WeaknessSuggestionsResult,
@@ -29,11 +31,14 @@ from app.modules.evaluations.prompts import (
     EXPLANATION_SYSTEM_PROMPT,
     REFERENCE_PROMPT_VERSION,
     REFERENCE_SYSTEM_PROMPT,
+    TEXT_SENSIBILITY_PROMPT_VERSION,
+    TEXT_SENSIBILITY_SYSTEM_PROMPT,
     WEAKNESS_SUGGESTIONS_PROMPT_VERSION,
     WEAKNESS_SUGGESTIONS_SYSTEM_PROMPT,
     build_evaluation_user_prompt,
     build_explanation_user_prompt,
     build_reference_user_prompt,
+    build_text_sensibility_user_prompt,
     build_weakness_suggestions_user_prompt,
 )
 
@@ -73,6 +78,13 @@ class _EvaluationSchema(BaseModel):
 
 class _ExplanationSchema(BaseModel):
     explanation: str
+
+
+class _SourceTextAssessmentSchema(BaseModel):
+    # explanation before has_normal_meaning: same reasoning-before-verdict
+    # field-ordering discipline as _EvaluationSchema.
+    explanation: str
+    has_normal_meaning: bool
 
 
 class _WeaknessSuggestionSchema(BaseModel):
@@ -181,6 +193,24 @@ class OpenAIEvaluationEngine(EvaluationEngine):
             explanation=parsed.explanation,
             model=self._model,
             prompt_version=EXPLANATION_PROMPT_VERSION,
+            input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
+            output_tokens=completion.usage.completion_tokens if completion.usage else 0,
+        )
+
+    def assess_source_text(
+        self, request: SourceTextAssessmentRequest
+    ) -> SourceTextAssessmentResult:
+        completion = self._parse(
+            system_prompt=TEXT_SENSIBILITY_SYSTEM_PROMPT,
+            user_prompt=build_text_sensibility_user_prompt(request),
+            schema=_SourceTextAssessmentSchema,
+        )
+        parsed = self._require_parsed(completion)
+        return SourceTextAssessmentResult(
+            has_normal_meaning=parsed.has_normal_meaning,
+            explanation=parsed.explanation,
+            model=self._model,
+            prompt_version=TEXT_SENSIBILITY_PROMPT_VERSION,
             input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
             output_tokens=completion.usage.completion_tokens if completion.usage else 0,
         )

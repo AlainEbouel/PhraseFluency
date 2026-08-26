@@ -4,7 +4,12 @@ from pydantic import BaseModel, Field
 
 from app.modules.evaluations.enums import InputMethod, Verdict
 from app.modules.learning.enums import TextProgressStatus
-from app.modules.learning.engine import MAX_SERIES_GOAL, MIN_SERIES_GOAL
+from app.modules.learning.engine import (
+    MAX_NEW_TEXT_INSERTION_GAP,
+    MAX_SERIES_GOAL,
+    MIN_NEW_TEXT_INSERTION_GAP,
+    MIN_SERIES_GOAL,
+)
 from app.modules.texts.models import Difficulty
 
 
@@ -76,6 +81,22 @@ class SeriesSettingsOut(BaseModel):
     series_goal: int
 
     model_config = {"from_attributes": True}
+
+
+class InsertionSettingsIn(BaseModel):
+    new_text_insertion_gap: int = Field(
+        ge=MIN_NEW_TEXT_INSERTION_GAP, le=MAX_NEW_TEXT_INSERTION_GAP
+    )
+
+
+class InsertionSettingsOut(BaseModel):
+    new_text_insertion_gap: int
+
+    model_config = {"from_attributes": True}
+
+
+class ReportTextOut(BaseModel):
+    confirmed: bool
 
 
 class DraftIn(BaseModel):

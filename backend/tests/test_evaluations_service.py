@@ -47,6 +47,9 @@ class FakeEngine(EvaluationEngine):
         self.weakness_suggestions_calls += 1
         return self.weakness_suggestions_result
 
+    def assess_source_text(self, request):
+        raise NotImplementedError
+
 
 def make_text_version(db_session, french_text="Je n'ai pas eu l'occasion de regarder ça."):
     text = Text(source="test")

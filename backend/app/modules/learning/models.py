@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 from app.modules.learning.engine import (
     DEFAULT_CURRENT_LEVEL_SHARE,
+    DEFAULT_NEW_TEXT_INSERTION_GAP,
     DEFAULT_REQUIRED_NATURAL_EQUIVALENTS,
     DEFAULT_REQUIRED_SCORE,
     DEFAULT_SERIES_GOAL,
@@ -73,3 +74,6 @@ class UserLearningState(Base):
     series_progress: Mapped[int] = mapped_column(Integer, default=0)
     series_success_count: Mapped[int] = mapped_column(Integer, default=0)
     series_points: Mapped[int] = mapped_column(Integer, default=0)
+    new_text_insertion_gap: Mapped[int] = mapped_column(
+        Integer, default=DEFAULT_NEW_TEXT_INSERTION_GAP
+    )

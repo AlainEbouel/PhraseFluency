@@ -42,6 +42,9 @@ class FakeEngine(EvaluationEngine):
     def generate_weakness_suggestions(self, request):
         raise NotImplementedError
 
+    def assess_source_text(self, request):
+        raise NotImplementedError
+
 
 def eval_result(verdict: Verdict, **overrides) -> EvaluationResult:
     defaults = dict(

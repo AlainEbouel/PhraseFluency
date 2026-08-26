@@ -6,7 +6,11 @@ from sqlalchemy import func, select
 from app.modules.evaluations.engine import EvaluationEngine, EvaluationEngineError
 from app.modules.evaluations.enums import InputMethod, Verdict
 from app.modules.evaluations.models import Attempt, Evaluation
-from app.modules.evaluations.ports import EvaluationResult, ReferenceGenerationResult
+from app.modules.evaluations.ports import (
+    EvaluationResult,
+    ReferenceGenerationResult,
+    SourceTextAssessmentResult,
+)
 from app.modules.learning import service
 from app.modules.learning.enums import TextProgressStatus
 from app.modules.learning.models import UserTextProgress
@@ -16,10 +20,12 @@ from app.modules.users.models import User, UserRole
 
 
 class FakeEngine(EvaluationEngine):
-    def __init__(self, evaluation_results=None, fail=False):
+    def __init__(self, evaluation_results=None, fail=False, assessment_result=None):
         self.evaluation_results = list(evaluation_results or [])
         self.fail = fail
         self.evaluate_calls = 0
+        self.assessment_result = assessment_result
+        self.assess_source_text_calls = 0
 
     def generate_reference(self, request):
         return ReferenceGenerationResult(
@@ -45,6 +51,10 @@ class FakeEngine(EvaluationEngine):
 
     def generate_weakness_suggestions(self, request):
         raise NotImplementedError
+
+    def assess_source_text(self, request):
+        self.assess_source_text_calls += 1
+        return self.assessment_result
 
 
 def eval_result(verdict: Verdict, **overrides) -> EvaluationResult:
@@ -1184,6 +1194,139 @@ class TestDisableTextForUser:
         updated = service.disable_text_for_user(db_session, user.id, text.id)
 
         assert updated.status == TextProgressStatus.DISABLED
+
+
+def assessment_result(has_normal_meaning: bool) -> SourceTextAssessmentResult:
+    return SourceTextAssessmentResult(
+        has_normal_meaning=has_normal_meaning,
+        explanation="explanation",
+        model="gpt-4o-mini",
+        prompt_version="text-sensibility-v1",
+        input_tokens=1,
+        output_tokens=1,
+    )
+
+
+class TestReportText:
+    def test_confirmed_report_disables_globally_and_replaces_for_the_user(self, db_session):
+        user = make_user(db_session)
+        for _ in range(2):
+            make_text(db_session)
+        service.activate_up_to_bank_target(db_session, user.id, target=1)
+        db_session.commit()
+        progress_row = db_session.scalars(
+            select(UserTextProgress).where(UserTextProgress.user_id == user.id)
+        ).one()
+        engine = FakeEngine(assessment_result=assessment_result(has_normal_meaning=False))
+
+        result = service.report_text(db_session, engine, user, progress_row.text_id)
+
+        assert result.confirmed is True
+        assert engine.assess_source_text_calls == 1
+        text = db_session.get(Text, progress_row.text_id)
+        assert text.enabled is False
+        updated_progress = db_session.get(UserTextProgress, (user.id, progress_row.text_id))
+        assert updated_progress.status == TextProgressStatus.DISABLED
+        active = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id, UserTextProgress.status == TextProgressStatus.ACTIVE
+            )
+        ).all()
+        assert len(active) == 1
+        assert active[0].text_id != progress_row.text_id
+
+    def test_confirmed_report_clears_it_as_the_current_exercise(self, db_session):
+        user = make_user(db_session)
+        for _ in range(2):
+            make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(assessment_result=assessment_result(has_normal_meaning=False))
+
+        service.report_text(db_session, engine, user, next_ex.progress.text_id)
+
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.current_text_id is None
+
+    def test_rejected_report_changes_nothing(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        engine = FakeEngine(assessment_result=assessment_result(has_normal_meaning=True))
+
+        result = service.report_text(db_session, engine, user, next_ex.progress.text_id)
+
+        assert result.confirmed is False
+        text = db_session.get(Text, next_ex.progress.text_id)
+        assert text.enabled is True
+        progress = db_session.get(UserTextProgress, (user.id, next_ex.progress.text_id))
+        assert progress.status == TextProgressStatus.ACTIVE
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        assert learning_state.current_text_id == next_ex.progress.text_id
+
+    def test_raises_for_an_unknown_text(self, db_session):
+        user = make_user(db_session)
+        engine = FakeEngine(assessment_result=assessment_result(has_normal_meaning=False))
+
+        with pytest.raises(ValueError):
+            service.report_text(db_session, engine, user, uuid.uuid4())
+
+
+class TestUpdateInsertionSettings:
+    def test_updates_the_gap(self, db_session):
+        user = make_user(db_session)
+
+        learning_state = service.update_insertion_settings(
+            db_session, user.id, new_text_insertion_gap=7
+        )
+
+        assert learning_state.new_text_insertion_gap == 7
+
+    def test_new_texts_resurface_after_the_configured_gap_instead_of_the_back(self, db_session):
+        user = make_user_without_level(db_session)
+        for _ in range(10):
+            make_text(db_session, difficulty=Difficulty.B2)
+        service.update_insertion_settings(db_session, user.id, new_text_insertion_gap=2)
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B2
+        learning_state.target_level = Difficulty.B2
+        db_session.commit()
+        service.activate_up_to_bank_target(db_session, user.id, target=5)
+
+        # Master the text with the lowest rotation_position (next in line)
+        # to free exactly one slot for a single replacement activation.
+        evicted = db_session.scalars(
+            select(UserTextProgress)
+            .where(UserTextProgress.user_id == user.id)
+            .order_by(UserTextProgress.rotation_position.asc())
+        ).first()
+        active_before = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id,
+                UserTextProgress.status == TextProgressStatus.ACTIVE,
+                UserTextProgress.text_id != evicted.text_id,
+            )
+        ).all()
+        # Positions get reshuffled by the insertion shift, so identity must
+        # be tracked by text_id, not by which position values existed before.
+        text_ids_before = {row.text_id for row in active_before}
+        positions_before = sorted(row.rotation_position for row in active_before)
+        evicted.status = TextProgressStatus.MASTERED
+        db_session.add(evicted)
+        db_session.commit()
+
+        service.activate_up_to_bank_target(db_session, user.id, target=5)
+
+        # The replacement is the newly-activated text: the one whose
+        # text_id wasn't already active before this activation.
+        replacement = db_session.scalars(
+            select(UserTextProgress).where(
+                UserTextProgress.user_id == user.id,
+                UserTextProgress.status == TextProgressStatus.ACTIVE,
+                UserTextProgress.text_id.not_in(text_ids_before),
+            )
+        ).one()
+        ahead_of_it = sum(1 for p in positions_before if p < replacement.rotation_position)
+        assert ahead_of_it <= 2
 
 
 class TestListUserTextBank:

@@ -11,21 +11,23 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.modules.evaluations.engine import EvaluationEngine
 from app.modules.evaluations.enums import AttemptMode, InputMethod, Verdict
 from app.modules.evaluations.models import Attempt, Evaluation
-from app.modules.evaluations.ports import EvaluationResult
+from app.modules.evaluations.ports import EvaluationResult, SourceTextAssessmentRequest
 from app.modules.evaluations.service import get_or_create_reference, run_evaluation
 from app.modules.learning.engine import (
     CEFR_ORDER,
     DEFAULT_ACTIVE_BANK_SIZE,
     DEFAULT_CURRENT_LEVEL_SHARE,
     MAX_CURRENT_LEVEL_SHARE,
+    MAX_NEW_TEXT_INSERTION_GAP,
     MAX_RETRIES,
     MAX_SERIES_GOAL,
+    MIN_NEW_TEXT_INSERTION_GAP,
     MIN_SERIES_GOAL,
     QueueCandidate,
     TextProgressState,
@@ -33,6 +35,7 @@ from app.modules.learning.engine import (
     bench,
     disable,
     increase_repetition,
+    insertion_rotation_position,
     manually_acquire,
     points_for_verdict,
     prioritized_tiers,
@@ -47,6 +50,7 @@ from app.modules.learning.models import UserLearningState, UserTextProgress
 from app.modules.tests.models import Test
 from app.modules.tests.service import assign_new_tests_if_ready
 from app.modules.texts.models import Difficulty, LinguisticReference, Text, TextVersion
+from app.modules.texts.service import set_text_enabled
 from app.modules.users.models import User
 from app.shared.ai_usage import record_ai_usage
 from app.shared.mixins import utcnow
@@ -182,6 +186,20 @@ def update_series_settings(db: Session, user_id: uuid.UUID, *, series_goal: int)
     return learning_state
 
 
+def update_insertion_settings(
+    db: Session, user_id: uuid.UUID, *, new_text_insertion_gap: int
+) -> UserLearningState:
+    """Change how soon a freshly-activated text resurfaces (see
+    engine.insertion_rotation_position). Takes effect on the next
+    activation — never rewrites already-queued rotation_position values."""
+    learning_state = get_or_create_learning_state(db, user_id)
+    learning_state.new_text_insertion_gap = new_text_insertion_gap
+    db.add(learning_state)
+    db.commit()
+    db.refresh(learning_state)
+    return learning_state
+
+
 def _next_rotation_position(db: Session, user_id: uuid.UUID) -> int:
     current_max = db.scalar(
         select(func.max(UserTextProgress.rotation_position)).where(
@@ -189,6 +207,35 @@ def _next_rotation_position(db: Session, user_id: uuid.UUID) -> int:
         )
     )
     return (current_max or 0) + 1
+
+
+def _insert_rotation_position(db: Session, user_id: uuid.UUID, gap: int) -> int:
+    """Where a brand-new (never-seen-before) text should enter the
+    rotation so it resurfaces after `gap` other active texts, instead of
+    at the very back — see engine.insertion_rotation_position. Only for
+    texts entering the bank for the first time, never for an already-seen
+    text cycling back through normal rotation (skip, natural-answer
+    return) — those still use _next_rotation_position unchanged.
+    """
+    active_positions = list(
+        db.scalars(
+            select(UserTextProgress.rotation_position).where(
+                UserTextProgress.user_id == user_id,
+                UserTextProgress.status == TextProgressStatus.ACTIVE,
+            )
+        ).all()
+    )
+    new_position, shift_from = insertion_rotation_position(active_positions, gap)
+    if shift_from is not None:
+        db.execute(
+            update(UserTextProgress)
+            .where(
+                UserTextProgress.user_id == user_id,
+                UserTextProgress.rotation_position >= shift_from,
+            )
+            .values(rotation_position=UserTextProgress.rotation_position + 1)
+        )
+    return new_position
 
 
 def _active_count(db: Session, user_id: uuid.UUID) -> int:
@@ -211,6 +258,7 @@ def activate_up_to_bank_target(
     current_level = learning_state.current_level
     target_level = learning_state.target_level
     current_level_share = learning_state.current_level_share
+    insertion_gap = learning_state.new_text_insertion_gap
     activated = 0
     while should_activate_next(
         _active_count(db, user_id),
@@ -225,7 +273,7 @@ def activate_up_to_bank_target(
             text_id=candidate.id,
             status=TextProgressStatus.ACTIVE,
             first_seen_at=utcnow(),
-            rotation_position=_next_rotation_position(db, user_id),
+            rotation_position=_insert_rotation_position(db, user_id, insertion_gap),
         )
         db.add(progress)
         db.flush()
@@ -443,7 +491,9 @@ def rebalance_active_bank(db: Session, user_id: uuid.UUID) -> None:
                     text_id=candidate.id,
                     status=TextProgressStatus.ACTIVE,
                     first_seen_at=utcnow(),
-                    rotation_position=_next_rotation_position(db, user_id),
+                    rotation_position=_insert_rotation_position(
+                        db, user_id, learning_state.new_text_insertion_gap
+                    ),
                 )
             )
             db.flush()
@@ -838,6 +888,53 @@ def disable_text_for_user(db: Session, user_id: uuid.UUID, text_id: uuid.UUID) -
         activate_up_to_bank_target(db, user_id)
     db.commit()
     return progress
+
+
+@dataclass(frozen=True)
+class ReportTextResult:
+    confirmed: bool
+
+
+def report_text(
+    db: Session, engine: EvaluationEngine, user: User, text_id: uuid.UUID
+) -> ReportTextResult:
+    """A learner flagged this French source text as not making sense.
+    The AI, not the learner's say-so, decides — see
+    evaluations.prompts.TEXT_SENSIBILITY_SYSTEM_PROMPT. If confirmed
+    broken, the text is pulled globally (nobody else will ever see it
+    again) and immediately replaced for the reporting user."""
+    text = db.get(Text, text_id)
+    if text is None:
+        raise ValueError("Text not found")
+    text_version = db.get(TextVersion, text.current_version_id)
+
+    result = engine.assess_source_text(
+        SourceTextAssessmentRequest(french_text=text_version.french_text)
+    )
+    record_ai_usage(
+        db,
+        operation=AIOperation.SOURCE_TEXT_REVIEW,
+        model=result.model,
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+        user_id=user.id,
+    )
+
+    if result.has_normal_meaning:
+        db.commit()
+        return ReportTextResult(confirmed=False)
+
+    set_text_enabled(db, text_id, False)
+    disable_text_for_user(db, user.id, text_id)
+
+    learning_state = get_or_create_learning_state(db, user.id)
+    if learning_state.current_text_id == text_id:
+        learning_state.current_text_id = None
+        learning_state.current_draft = None
+        learning_state.current_hint_level = 0
+        db.add(learning_state)
+    db.commit()
+    return ReportTextResult(confirmed=True)
 
 
 def get_user_text_bank_item(

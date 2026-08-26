@@ -98,6 +98,14 @@ export interface SeriesSettings {
   series_goal: number;
 }
 
+export interface InsertionSettings {
+  new_text_insertion_gap: number;
+}
+
+export interface ReportTextResult {
+  confirmed: boolean;
+}
+
 export interface ExploreResult {
   verdict: Verdict;
   meaning_preserved: boolean;

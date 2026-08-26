@@ -40,6 +40,9 @@ class FakeEngine(EvaluationEngine):
     def generate_weakness_suggestions(self, request):
         raise NotImplementedError
 
+    def assess_source_text(self, request):
+        raise NotImplementedError
+
 
 def make_user(db_session) -> User:
     user = User(email=f"{uuid.uuid4()}@phrasefluency.app", password_hash="x", role=UserRole.USER)

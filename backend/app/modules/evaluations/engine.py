@@ -15,6 +15,8 @@ from app.modules.evaluations.ports import (
     GrammarExplanationResult,
     ReferenceGenerationRequest,
     ReferenceGenerationResult,
+    SourceTextAssessmentRequest,
+    SourceTextAssessmentResult,
     WeaknessSuggestionsRequest,
     WeaknessSuggestionsResult,
 )
@@ -49,3 +51,11 @@ class EvaluationEngine(ABC):
     def generate_weakness_suggestions(
         self, request: WeaknessSuggestionsRequest
     ) -> WeaknessSuggestionsResult: ...
+
+    @abstractmethod
+    def assess_source_text(
+        self, request: SourceTextAssessmentRequest
+    ) -> SourceTextAssessmentResult:
+        """Judge whether a French source text has a normal, usual meaning
+        (learner-reported "this doesn't make sense" flow)."""
+        ...

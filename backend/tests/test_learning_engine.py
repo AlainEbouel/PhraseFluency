@@ -7,6 +7,7 @@ from app.modules.learning.engine import (
     TextProgressState,
     advance_series,
     increase_repetition,
+    insertion_rotation_position,
     is_imperfect,
     manually_acquire,
     points_for_verdict,
@@ -405,3 +406,43 @@ class TestAdvanceSeries:
 
         assert outcome.progress == 1
         assert outcome.points == 0
+
+
+class TestInsertionRotationPosition:
+    def test_empty_bank_appends_at_position_one(self):
+        position, shift_from = insertion_rotation_position([], gap=3)
+
+        assert position == 1
+        assert shift_from is None
+
+    def test_fewer_active_texts_than_gap_appends_at_the_back(self):
+        position, shift_from = insertion_rotation_position([5, 8], gap=3)
+
+        assert position == 9
+        assert shift_from is None
+
+    def test_exactly_gap_active_texts_still_appends_at_the_back(self):
+        position, shift_from = insertion_rotation_position([5, 8, 10], gap=3)
+
+        assert position == 11
+        assert shift_from is None
+
+    def test_more_than_gap_inserts_after_the_gap_th_text(self):
+        # 5 active texts, gap=3: exactly 3 must remain strictly ahead of
+        # the new one, so it takes the 4th-smallest position (index 3).
+        position, shift_from = insertion_rotation_position([5, 8, 10, 12, 20], gap=3)
+
+        assert position == 12
+        assert shift_from == 12
+
+    def test_gap_zero_inserts_immediately_at_the_front(self):
+        position, shift_from = insertion_rotation_position([5, 8, 10], gap=0)
+
+        assert position == 5
+        assert shift_from == 5
+
+    def test_unsorted_input_is_handled(self):
+        position, shift_from = insertion_rotation_position([20, 5, 12, 8, 10], gap=3)
+
+        assert position == 12
+        assert shift_from == 12
