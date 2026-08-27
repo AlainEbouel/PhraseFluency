@@ -280,6 +280,19 @@ def increase_repetition(
     return RepetitionOut(progress=_progress_out(progress))
 
 
+@router.post("/{text_id}/repetition/decrease", response_model=RepetitionOut)
+def decrease_repetition(
+    text_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    try:
+        progress = service.decrease_repetition_for_text(db, user.id, text_id)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return RepetitionOut(progress=_progress_out(progress))
+
+
 @router.post("/{text_id}/acquire", response_model=AcquireOut)
 def acquire(
     text_id: uuid.UUID,

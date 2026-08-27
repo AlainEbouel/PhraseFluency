@@ -6,6 +6,7 @@ import { fetchNextDictation, submitDictationAnswer } from "../../api/dictation";
 import type { DictationExercise, DictationSubmitResult } from "../../api/dictation";
 import {
   chooseLevel,
+  decreaseRepetition,
   exploreAlternative,
   fetchExplanation,
   fetchNextExercise,
@@ -40,6 +41,9 @@ import { useSoundEffects } from "../../hooks/useSoundEffects";
 import { DIFFICULTY_LABELS, DIFFICULTY_PILL } from "../../constants/difficulty";
 
 type ExerciseKind = "translation" | "dictation";
+
+// Mirrors DEFAULT_REQUIRED_NATURAL_EQUIVALENTS in backend/app/modules/learning/engine.py.
+const MIN_REQUIRED_NATURAL_EQUIVALENTS = 2;
 
 function pickExerciseKind(preferences: Record<string, unknown> | undefined): ExerciseKind {
   const translationEnabled = preferences?.translation_enabled !== false;
@@ -384,6 +388,19 @@ export function LearningPage() {
     }
   }
 
+  async function handleDecreaseRepetition() {
+    if (!exercise) return;
+    try {
+      const result = await decreaseRepetition(exercise.text_id);
+      setExercise({ ...exercise, progress: result.progress });
+      setRepetitionMessage(
+        `Répétition diminuée : ${result.progress.required_natural_equivalents} réponses naturelles requises maintenant.`
+      );
+    } catch {
+      setSubmitError("Impossible de diminuer la répétition pour le moment.");
+    }
+  }
+
   async function handleAcquire() {
     if (!exercise) return;
     setShowAcquireConfirm(false);
@@ -685,6 +702,13 @@ export function LearningPage() {
             </button>
             <button
               type="button"
+              onClick={handleDecreaseRepetition}
+              disabled={exercise.progress.required_natural_equivalents <= MIN_REQUIRED_NATURAL_EQUIVALENTS}
+            >
+              −1 répétition
+            </button>
+            <button
+              type="button"
               onClick={() => setShowReportConfirm(true)}
               disabled={isReporting}
             >
@@ -884,6 +908,13 @@ export function LearningPage() {
                 <>
                   <button type="button" onClick={handleRepetition}>
                     +1 répétition
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDecreaseRepetition}
+                    disabled={feedback.progress.required_natural_equivalents <= MIN_REQUIRED_NATURAL_EQUIVALENTS}
+                  >
+                    −1 répétition
                   </button>
                   <button type="button" onClick={() => setShowAcquireConfirm(true)}>
                     Marquer comme acquis

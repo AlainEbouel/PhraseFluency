@@ -105,6 +105,10 @@ export function increaseRepetition(textId: string): Promise<{ progress: Progress
   return apiRequest(`/api/v1/learning/${textId}/repetition`, { method: "POST" });
 }
 
+export function decreaseRepetition(textId: string): Promise<{ progress: Progress }> {
+  return apiRequest(`/api/v1/learning/${textId}/repetition/decrease`, { method: "POST" });
+}
+
 export function acquireText(textId: string): Promise<{ progress: Progress }> {
   return apiRequest(`/api/v1/learning/${textId}/acquire`, { method: "POST" });
 }

@@ -186,6 +186,22 @@ def increase_repetition(progress: TextProgressState) -> TextProgressState:
     )
 
 
+def decrease_repetition(progress: TextProgressState) -> TextProgressState:
+    # Floored at the defaults rather than tracked separately: nothing else
+    # mutates these two fields, so the floor alone already guarantees you
+    # can undo exactly as many increases as you made, never fewer.
+    return replace(
+        progress,
+        required_natural_equivalents=max(
+            DEFAULT_REQUIRED_NATURAL_EQUIVALENTS,
+            progress.required_natural_equivalents - REPETITION_NATURAL_EQUIVALENT_INCREMENT,
+        ),
+        required_score=max(
+            DEFAULT_REQUIRED_SCORE, progress.required_score - REPETITION_SCORE_INCREMENT
+        ),
+    )
+
+
 def manually_acquire(progress: TextProgressState) -> TextProgressState:
     return replace(
         progress,

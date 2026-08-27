@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_timeout_seconds: float = 30.0
-    tts_voice: str = "alloy"
     audio_storage_path: str = "/data/audio"
 
     session_cookie_name: str = "pf_session"

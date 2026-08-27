@@ -1099,6 +1099,29 @@ class TestRepetitionAndAcquisition:
         assert progress.required_natural_equivalents == 3
         assert progress.required_score == 6
 
+    def test_decrease_repetition_lowers_targets(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        service.increase_repetition_for_text(db_session, user.id, next_ex.progress.text_id)
+
+        progress = service.decrease_repetition_for_text(db_session, user.id, next_ex.progress.text_id)
+
+        assert progress.required_natural_equivalents == 2
+        assert progress.required_score == 4
+
+    def test_decrease_repetition_does_not_go_below_the_floor_with_no_prior_increase(
+        self, db_session
+    ):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+
+        progress = service.decrease_repetition_for_text(db_session, user.id, next_ex.progress.text_id)
+
+        assert progress.required_natural_equivalents == 2
+        assert progress.required_score == 4
+
     def test_manual_acquisition_does_not_count_as_correct_and_backfills_bank(self, db_session):
         user = make_user(db_session)
         for _ in range(2):
@@ -1327,6 +1350,77 @@ class TestUpdateInsertionSettings:
         ).one()
         ahead_of_it = sum(1 for p in positions_before if p < replacement.rotation_position)
         assert ahead_of_it <= 2
+
+
+class TestNaturalCycleSeniorityInvariant:
+    def test_a_later_introduced_text_never_gets_its_nth_turn_before_an_earlier_ones(
+        self, db_session
+    ):
+        user = make_user_without_level(db_session)
+        # Exactly 4: A, B, C fill the target=3 bank, and the 4th is the only
+        # unseen text left for D's backfill once C masters below.
+        texts = [make_text(db_session, difficulty=Difficulty.B2) for _ in range(4)]
+        service.update_insertion_settings(db_session, user.id, new_text_insertion_gap=1)
+        learning_state = service.get_or_create_learning_state(db_session, user.id)
+        learning_state.current_level = Difficulty.B2
+        learning_state.target_level = Difficulty.B2
+        db_session.commit()
+        service.activate_up_to_bank_target(db_session, user.id, target=3)
+
+        active_ids = [
+            row.text_id
+            for row in db_session.scalars(
+                select(UserTextProgress).where(
+                    UserTextProgress.user_id == user.id,
+                    UserTextProgress.status == TextProgressStatus.ACTIVE,
+                )
+            ).all()
+        ]
+        a_id, b_id, c_id = active_ids
+        # A and B must survive many more natural answers than C without
+        # mastering, so raise their bar well past this test's observation
+        # window (mastery churn is orthogonal to the invariant under test).
+        for _ in range(5):
+            service.increase_repetition_for_text(db_session, user.id, a_id)
+            service.increase_repetition_for_text(db_session, user.id, b_id)
+        engine = FakeEngine(evaluation_results=[eval_result(Verdict.CORRECT_NATURAL)])
+
+        for text_id in (a_id, b_id):
+            service.submit_answer(
+                db_session, engine, user, text_id=text_id,
+                user_answer="answer", input_method=InputMethod.KEYBOARD,
+                submission_id=str(uuid.uuid4()),
+            )
+        # Two naturals master C (score 2+2 >= required_score 4), which
+        # backfills a brand-new text via the gap-aware insertion.
+        for _ in range(2):
+            service.submit_answer(
+                db_session, engine, user, text_id=c_id,
+                user_answer="answer", input_method=InputMethod.KEYBOARD,
+                submission_id=str(uuid.uuid4()),
+            )
+
+        d_id = next(t.id for t in texts if t.id not in (a_id, b_id, c_id))
+        for _ in range(5):
+            service.increase_repetition_for_text(db_session, user.id, d_id)
+
+        served_order = []
+        for _ in range(9):  # 3 full cycles of the {A, D, B} steady-state bank
+            next_ex = service.get_next_exercise(db_session, user)
+            served_order.append(next_ex.progress.text_id)
+            service.submit_answer(
+                db_session, engine, user, text_id=next_ex.progress.text_id,
+                user_answer="answer", input_method=InputMethod.KEYBOARD,
+                submission_id=str(uuid.uuid4()),
+            )
+
+        d_occurrences = [i for i, t in enumerate(served_order) if t == d_id]
+        # Deliberately out of scope: due-based review (a wrong/hint-assisted
+        # answer) can still let a later text jump the queue - only the
+        # natural, review-free cycle exercised here must respect seniority.
+        assert len(d_occurrences) >= 2
+        assert d_occurrences[1] > served_order.index(a_id)
+        assert d_occurrences[1] > served_order.index(b_id)
 
 
 class TestListUserTextBank:

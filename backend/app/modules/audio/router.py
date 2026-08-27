@@ -1,3 +1,4 @@
+import random
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
@@ -17,21 +18,34 @@ from app.modules.users.models import User
 
 router = APIRouter(prefix="/api/v1/audio", tags=["audio"])
 
-_tts: TextToSpeechProvider | None = None
+# tts-1 supports alloy/echo/fable/onyx/nova/shimmer -- 2 male-leaning + 2
+# female-leaning picks (product/UX judgment call; adjust after listening).
+TTS_VOICE_PROFILES = ["onyx", "echo", "nova", "shimmer"]
+
+_tts_pool: dict[str, TextToSpeechProvider] | None = None
 _stt: SpeechToTextProvider | None = None
 _storage: AudioStorage | None = None
 
 
-def get_tts_provider() -> TextToSpeechProvider:
-    global _tts
-    if _tts is None:
+def _get_tts_pool() -> dict[str, TextToSpeechProvider]:
+    global _tts_pool
+    if _tts_pool is None:
         settings = get_settings()
-        _tts = TextToSpeechProvider(
-            api_key=settings.openai_api_key,
-            voice=settings.tts_voice,
-            timeout_seconds=settings.openai_timeout_seconds,
-        )
-    return _tts
+        _tts_pool = {
+            voice: TextToSpeechProvider(
+                api_key=settings.openai_api_key,
+                voice=voice,
+                timeout_seconds=settings.openai_timeout_seconds,
+            )
+            for voice in TTS_VOICE_PROFILES
+        }
+    return _tts_pool
+
+
+def _pick_tts_provider() -> TextToSpeechProvider:
+    # Independent random pick per request (product decision): exercises
+    # should sound like different speakers, never a fixed voice per user.
+    return _get_tts_pool()[random.choice(TTS_VOICE_PROFILES)]
 
 
 def get_stt_provider() -> SpeechToTextProvider:
@@ -64,7 +78,7 @@ def _get_reference_for_text(db: Session, text_id: uuid.UUID) -> LinguisticRefere
 
 
 def _serve(db: Session, text: str) -> Response:
-    tts = get_tts_provider()
+    tts = _pick_tts_provider()
     storage = get_audio_storage()
     try:
         asset = service.get_or_create_audio(db, tts, storage, text)

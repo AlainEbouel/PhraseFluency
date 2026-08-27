@@ -29,7 +29,6 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
-      TTS_VOICE: ${TTS_VOICE:-alloy}
       AUDIO_STORAGE_PATH: /data/audio
     depends_on:
       postgres:

@@ -33,6 +33,7 @@ from app.modules.learning.engine import (
     TextProgressState,
     advance_series,
     bench,
+    decrease_repetition,
     disable,
     increase_repetition,
     insertion_rotation_position,
@@ -829,6 +830,18 @@ def increase_repetition_for_text(
     if progress is None:
         raise ValueError("No progress found for this text")
     _apply_domain(progress, increase_repetition(_to_domain(progress)))
+    db.add(progress)
+    db.commit()
+    return progress
+
+
+def decrease_repetition_for_text(
+    db: Session, user_id: uuid.UUID, text_id: uuid.UUID
+) -> UserTextProgress:
+    progress = db.get(UserTextProgress, (user_id, text_id))
+    if progress is None:
+        raise ValueError("No progress found for this text")
+    _apply_domain(progress, decrease_repetition(_to_domain(progress)))
     db.add(progress)
     db.commit()
     return progress

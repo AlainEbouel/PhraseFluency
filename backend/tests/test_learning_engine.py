@@ -6,6 +6,7 @@ from app.modules.learning.engine import (
     QueueCandidate,
     TextProgressState,
     advance_series,
+    decrease_repetition,
     increase_repetition,
     insertion_rotation_position,
     is_imperfect,
@@ -233,6 +234,28 @@ class TestRepetitionThreshold:
         progress = increase_repetition(increase_repetition(active_progress()))
         assert progress.required_natural_equivalents == 4
         assert progress.required_score == 8
+
+    def test_minus_one_undoes_a_prior_increase(self):
+        progress = decrease_repetition(increase_repetition(active_progress()))
+        assert progress.required_natural_equivalents == 2
+        assert progress.required_score == 4
+
+    def test_decrease_at_default_is_a_no_op(self):
+        progress = decrease_repetition(active_progress())
+        assert progress.required_natural_equivalents == 2
+        assert progress.required_score == 4
+
+    def test_stacked_increase_then_single_decrease(self):
+        progress = increase_repetition(increase_repetition(active_progress()))
+        progress = decrease_repetition(progress)
+        assert progress.required_natural_equivalents == 3
+        assert progress.required_score == 6
+
+    def test_decreasing_more_than_increased_clamps_at_the_floor(self):
+        progress = increase_repetition(active_progress())
+        progress = decrease_repetition(decrease_repetition(progress))
+        assert progress.required_natural_equivalents == 2
+        assert progress.required_score == 4
 
 
 class TestManualAcquisition:
