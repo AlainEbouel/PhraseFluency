@@ -4,6 +4,7 @@ from app.modules.texts.models import Difficulty, ExerciseType, Text, TextVersion
 from app.modules.texts.service import (
     create_new_version,
     find_duplicate_texts,
+    find_shared_sentence_texts,
     get_text_with_versions,
     list_texts,
     set_text_enabled,
@@ -129,3 +130,50 @@ class TestFindDuplicateTexts:
         assert len(groups) == 1
         assert groups[0].survivor_id == survivor.id
         assert groups[0].duplicate_ids == [dupe.id]
+
+
+class TestFindSharedSentenceTexts:
+    def test_scopes_to_the_requested_difficulty(self, db_session):
+        common = "Marie va au marché le samedi matin."
+        make_text(db_session, french_text=f"{common} Elle achète des pommes.", difficulty=Difficulty.B2)
+        make_text(db_session, french_text=f"{common} Elle achète du pain.", difficulty=Difficulty.C1)
+
+        groups = find_shared_sentence_texts(db_session, Difficulty.B2)
+
+        assert groups == []
+
+    def test_ignores_disabled_texts(self, db_session):
+        common = "Marie va au marché le samedi matin."
+        a = make_text(db_session, french_text=f"{common} Elle achète des pommes.")
+        b = make_text(db_session, french_text=f"{common} Elle achète du pain.")
+        set_text_enabled(db_session, b.id, False)
+
+        assert find_shared_sentence_texts(db_session, Difficulty.B2) == []
+        assert a.enabled is True
+
+    def test_finds_texts_sharing_one_sentence_even_though_the_rest_differs(self, db_session):
+        common = "Marie va au marché le samedi matin."
+        a = make_text(db_session, french_text=f"{common} Elle achète des pommes.")
+        b = make_text(db_session, french_text=f"{common} Elle achète du pain.")
+
+        groups = find_shared_sentence_texts(db_session, Difficulty.B2)
+
+        assert len(groups) == 1
+        assert set(groups[0].text_ids) == {a.id, b.id}
+
+    def test_groups_more_than_two_texts_sharing_one_sentence(self, db_session):
+        common = "Marie va au marché le samedi matin."
+        ids = {
+            make_text(db_session, french_text=f"{common} {ending}").id
+            for ending in (
+                "Elle achète des pommes.",
+                "Elle achète du pain.",
+                "Elle rencontre une amie.",
+                "Elle rentre à pied.",
+            )
+        }
+
+        groups = find_shared_sentence_texts(db_session, Difficulty.B2)
+
+        assert len(groups) == 1
+        assert set(groups[0].text_ids) == ids

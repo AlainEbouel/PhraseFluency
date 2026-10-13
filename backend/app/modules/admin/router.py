@@ -6,10 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.admin.schemas import (
+    DuplicateGroupOut,
     DuplicatesPreviewOut,
     DuplicatesResolveOut,
-    DuplicateGroupOut,
     ImportBatchOut,
+    SharedSentenceGroupOut,
+    SharedSentenceTextOut,
+    SharedSentencesPreviewOut,
     TextDetailOut,
     TextSummaryOut,
     TextVersionOut,
@@ -22,7 +25,7 @@ from app.modules.imports.models import ImportBatch
 from app.modules.learning import service as learning_service
 from app.modules.learning.models import UserTextProgress
 from app.modules.texts import service as texts_service
-from app.modules.texts.models import Difficulty
+from app.modules.texts.models import Difficulty, Text
 from app.modules.users import service as users_service
 from app.modules.users.models import User
 from app.modules.users.schemas import UserCreate, UserOut
@@ -103,6 +106,35 @@ def resolve_duplicate_texts(
     )
 
 
+@router.get("/texts/shared-sentences", response_model=SharedSentencesPreviewOut)
+def preview_shared_sentence_texts(
+    difficulty: Difficulty,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    groups = texts_service.find_shared_sentence_texts(db, difficulty)
+    out_groups = []
+    for group in groups:
+        texts_out = []
+        for text_id in group.text_ids:
+            text = db.get(Text, text_id)
+            affected_user_count = db.scalar(
+                select(func.count())
+                .select_from(UserTextProgress)
+                .where(UserTextProgress.text_id == text_id)
+            )
+            texts_out.append(
+                SharedSentenceTextOut(
+                    id=text.id,
+                    french_text=text.current_version.french_text,
+                    enabled=text.enabled,
+                    affected_user_count=affected_user_count,
+                )
+            )
+        out_groups.append(SharedSentenceGroupOut(sentence=group.sentence, texts=texts_out))
+    return SharedSentencesPreviewOut(difficulty=difficulty, groups=out_groups)
+
+
 @router.get("/texts/{text_id}", response_model=TextDetailOut)
 def text_detail(
     text_id: uuid.UUID, db: Session = Depends(get_db), _admin: User = Depends(require_admin)
@@ -127,6 +159,17 @@ def enable_text(
 ):
     try:
         texts_service.set_text_enabled(db, text_id, True)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return _text_detail(db, text_id)
+
+
+@router.post("/texts/{text_id}/disable-everywhere", response_model=TextDetailOut)
+def disable_text_everywhere(
+    text_id: uuid.UUID, db: Session = Depends(get_db), _admin: User = Depends(require_admin)
+):
+    try:
+        learning_service.disable_text_globally(db, text_id)
     except ValueError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     return _text_detail(db, text_id)

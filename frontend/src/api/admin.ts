@@ -92,6 +92,31 @@ export function resolveDuplicateTexts(difficulty: string): Promise<DuplicatesRes
   });
 }
 
+export interface SharedSentenceText {
+  id: string;
+  french_text: string;
+  enabled: boolean;
+  affected_user_count: number;
+}
+
+export interface SharedSentenceGroup {
+  sentence: string;
+  texts: SharedSentenceText[];
+}
+
+export interface SharedSentencesPreview {
+  difficulty: string;
+  groups: SharedSentenceGroup[];
+}
+
+export function previewSharedSentenceTexts(difficulty: string): Promise<SharedSentencesPreview> {
+  return apiRequest(`/api/v1/admin/texts/shared-sentences?difficulty=${difficulty}`);
+}
+
+export function disableTextEverywhere(textId: string): Promise<AdminTextDetail> {
+  return apiRequest(`/api/v1/admin/texts/${textId}/disable-everywhere`, { method: "POST" });
+}
+
 export function fetchImportBatches(): Promise<ImportBatch[]> {
   return apiRequest("/api/v1/admin/import-batches");
 }

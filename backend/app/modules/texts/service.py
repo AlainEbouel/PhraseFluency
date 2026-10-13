@@ -3,7 +3,12 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.texts.engine import DuplicateGroup, group_duplicates
+from app.modules.texts.engine import (
+    DuplicateGroup,
+    SharedSentenceGroup,
+    group_by_shared_sentence,
+    group_duplicates,
+)
 from app.modules.texts.models import Difficulty, ExerciseType, Pattern, Text, TextVersion
 
 
@@ -71,6 +76,16 @@ def find_duplicate_texts(db: Session, difficulty: Difficulty) -> list[DuplicateG
         .order_by(Text.created_at.asc())
     ).all()
     return group_duplicates([(row.id, row.french_text) for row in rows])
+
+
+def find_shared_sentence_texts(db: Session, difficulty: Difficulty) -> list[SharedSentenceGroup]:
+    rows = db.execute(
+        select(Text.id, TextVersion.french_text)
+        .join(TextVersion, Text.current_version_id == TextVersion.id)
+        .where(Text.enabled.is_(True), TextVersion.difficulty == difficulty)
+        .order_by(Text.created_at.asc())
+    ).all()
+    return group_by_shared_sentence([(row.id, row.french_text) for row in rows])
 
 
 def create_new_version(

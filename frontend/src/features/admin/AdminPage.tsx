@@ -6,6 +6,7 @@ import {
   confirmImport,
   createAdminUser,
   disableText,
+  disableTextEverywhere,
   disableTextForUser,
   disableUser,
   enableText,
@@ -16,6 +17,7 @@ import {
   fetchImportBatches,
   previewDuplicateTexts,
   previewImport,
+  previewSharedSentenceTexts,
   resolveDuplicateTexts,
 } from "../../api/admin";
 import type {
@@ -25,6 +27,7 @@ import type {
   DuplicatesPreview,
   ImportBatch,
   ImportPreview,
+  SharedSentencesPreview,
 } from "../../api/admin";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DIFFICULTY_LABELS } from "../../constants/difficulty";
@@ -80,6 +83,11 @@ function TextsTab() {
   const [isResolvingDup, setIsResolvingDup] = useState(false);
   const [showResolveConfirm, setShowResolveConfirm] = useState(false);
   const [dupError, setDupError] = useState<string | null>(null);
+  const [sentencePreview, setSentencePreview] = useState<SharedSentencesPreview | null>(null);
+  const [isCheckingSentences, setIsCheckingSentences] = useState(false);
+  const [sentenceError, setSentenceError] = useState<string | null>(null);
+  const [disableTarget, setDisableTarget] = useState<{ id: string; french_text: string; affected_user_count: number } | null>(null);
+  const [isDisablingTarget, setIsDisablingTarget] = useState(false);
 
   function reload() {
     fetchAdminTexts(search || undefined).then(setTexts).catch(() => setTexts([]));
@@ -123,6 +131,34 @@ function TextsTab() {
       setDupError("La suppression des doublons a échoué.");
     } finally {
       setIsResolvingDup(false);
+    }
+  }
+
+  async function checkSharedSentences() {
+    setSentenceError(null);
+    setIsCheckingSentences(true);
+    try {
+      const result = await previewSharedSentenceTexts(dupLevel);
+      setSentencePreview(result);
+    } catch {
+      setSentenceError("Impossible de vérifier les phrases communes pour le moment.");
+    } finally {
+      setIsCheckingSentences(false);
+    }
+  }
+
+  async function handleDisableTarget() {
+    if (!disableTarget) return;
+    setIsDisablingTarget(true);
+    try {
+      await disableTextEverywhere(disableTarget.id);
+      setDisableTarget(null);
+      await checkSharedSentences();
+      reload();
+    } catch {
+      setSentenceError("La désactivation a échoué.");
+    } finally {
+      setIsDisablingTarget(false);
     }
   }
 
@@ -190,6 +226,89 @@ function TextsTab() {
           />
         )}
       </div>
+
+      <div className="card">
+        <h2>Textes à phrase commune</h2>
+        <p className="explore-hint">
+          Repère les textes d'un niveau CEFR qui partagent au moins une phrase complète (le reste
+          pouvant différer) — utile quand une même mise en situation a été déclinée en plusieurs
+          variantes quasi identiques. Rien n'est désactivé automatiquement : chaque texte se
+          désactive individuellement, à toi de choisir.
+        </p>
+        <div className="admin-search-row">
+          <select value={dupLevel} onChange={(e) => setDupLevel(e.target.value)}>
+            {CEFR_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {DIFFICULTY_LABELS[level]}
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={checkSharedSentences} disabled={isCheckingSentences}>
+            {isCheckingSentences ? "Vérification..." : "Vérifier les phrases communes"}
+          </button>
+        </div>
+        {sentenceError && <p className="error-text">{sentenceError}</p>}
+        {sentencePreview && (
+          <div className="import-preview">
+            {sentencePreview.groups.length === 0 ? (
+              <p className="success-text">Aucune phrase commune trouvée pour ce niveau.</p>
+            ) : (
+              <p>{sentencePreview.groups.length} groupe(s) trouvé(s)</p>
+            )}
+            {sentencePreview.groups.map((group, i) => (
+              <div key={i} className="card">
+                <p>
+                  <strong>Phrase commune :</strong> {group.sentence}
+                </p>
+                <table className="stats-table">
+                  <thead>
+                    <tr>
+                      <th>Texte français</th>
+                      <th>Statut</th>
+                      <th>Utilisateurs affectés</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.texts.map((text) => (
+                      <tr key={text.id}>
+                        <td>{text.french_text}</td>
+                        <td>
+                          <span className={text.enabled ? "pill pill-good" : "pill pill-critical"}>
+                            {text.enabled ? "Actif" : "Désactivé"}
+                          </span>
+                        </td>
+                        <td>{text.affected_user_count}</td>
+                        <td>
+                          {text.enabled && (
+                            <button
+                              type="button"
+                              onClick={() => setDisableTarget(text)}
+                              disabled={isDisablingTarget}
+                            >
+                              Désactiver partout
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        )}
+        {disableTarget && (
+          <ConfirmDialog
+            title="Désactiver ce texte partout ?"
+            message={`"${disableTarget.french_text}" sera désactivé définitivement, affectant ${disableTarget.affected_user_count} utilisateur(s) — y compris ceux l'ayant déjà actif ou acquis. Cette action est irréversible.`}
+            confirmLabel="Désactiver"
+            onConfirm={handleDisableTarget}
+            onCancel={() => setDisableTarget(null)}
+          />
+        )}
+      </div>
+
       <div className="admin-search-row">
         <input
           type="text"

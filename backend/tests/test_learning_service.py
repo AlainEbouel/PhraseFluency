@@ -1294,6 +1294,55 @@ class TestReportText:
             service.report_text(db_session, engine, user, uuid.uuid4())
 
 
+class TestDisableTextGlobally:
+    def test_disables_the_text(self, db_session):
+        text = make_text(db_session)
+
+        service.disable_text_globally(db_session, text.id)
+
+        db_session.refresh(text)
+        assert text.enabled is False
+
+    def test_evicts_an_active_user_with_backfill(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+        make_text(db_session)  # unseen spare, available to backfill the evicted slot
+        progress = UserTextProgress(
+            user_id=user.id, text_id=text.id, status=TextProgressStatus.ACTIVE,
+            rotation_position=1,
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        affected = service.disable_text_globally(db_session, text.id)
+
+        assert affected == {user.id}
+        db_session.refresh(progress)
+        assert progress.status == TextProgressStatus.DISABLED
+
+    def test_evicts_a_user_who_already_mastered_it(self, db_session):
+        user = make_user(db_session)
+        text = make_text(db_session)
+        progress = UserTextProgress(
+            user_id=user.id, text_id=text.id, status=TextProgressStatus.MASTERED
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        affected = service.disable_text_globally(db_session, text.id)
+
+        assert affected == {user.id}
+        db_session.refresh(progress)
+        assert progress.status == TextProgressStatus.DISABLED
+
+    def test_no_progress_rows_affects_no_users(self, db_session):
+        text = make_text(db_session)
+
+        affected = service.disable_text_globally(db_session, text.id)
+
+        assert affected == set()
+
+
 class TestResolveDuplicateTexts:
     def test_disables_every_duplicate_but_the_survivor(self, db_session):
         survivor = make_text(db_session, french_text="Bonjour le monde")

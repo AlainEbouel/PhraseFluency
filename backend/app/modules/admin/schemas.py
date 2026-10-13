@@ -64,6 +64,23 @@ class DuplicatesResolveOut(BaseModel):
     users_affected: int
 
 
+class SharedSentenceTextOut(BaseModel):
+    id: uuid.UUID
+    french_text: str
+    enabled: bool
+    affected_user_count: int
+
+
+class SharedSentenceGroupOut(BaseModel):
+    sentence: str
+    texts: list[SharedSentenceTextOut]
+
+
+class SharedSentencesPreviewOut(BaseModel):
+    difficulty: Difficulty
+    groups: list[SharedSentenceGroupOut]
+
+
 class ImportBatchOut(BaseModel):
     id: uuid.UUID
     filename: str

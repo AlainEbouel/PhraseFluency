@@ -950,6 +950,19 @@ def report_text(
     return ReportTextResult(confirmed=True)
 
 
+def disable_text_globally(db: Session, text_id: uuid.UUID) -> set[uuid.UUID]:
+    """Disables a text platform-wide and evicts it from every user's bank -
+    active, mastered, or otherwise - backfilling where needed. Returns the
+    set of affected user ids."""
+    set_text_enabled(db, text_id, False)
+    rows = db.scalars(select(UserTextProgress).where(UserTextProgress.text_id == text_id)).all()
+    affected: set[uuid.UUID] = set()
+    for row in rows:
+        disable_text_for_user(db, row.user_id, text_id)
+        affected.add(row.user_id)
+    return affected
+
+
 @dataclass(frozen=True)
 class DuplicateResolution:
     groups_resolved: int
@@ -971,13 +984,7 @@ def resolve_duplicate_texts(db: Session, difficulty: Difficulty) -> DuplicateRes
     texts_disabled = 0
     for group in groups:
         for text_id in group.duplicate_ids:
-            set_text_enabled(db, text_id, False)
-            rows = db.scalars(
-                select(UserTextProgress).where(UserTextProgress.text_id == text_id)
-            ).all()
-            for row in rows:
-                disable_text_for_user(db, row.user_id, text_id)
-                affected_users.add(row.user_id)
+            affected_users |= disable_text_globally(db, text_id)
             texts_disabled += 1
     return DuplicateResolution(len(groups), texts_disabled, len(affected_users))
 
