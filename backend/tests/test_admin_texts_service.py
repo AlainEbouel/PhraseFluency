@@ -1,10 +1,16 @@
 import uuid
 
 from app.modules.texts.models import Difficulty, ExerciseType, Text, TextVersion
-from app.modules.texts.service import create_new_version, get_text_with_versions, list_texts, set_text_enabled
+from app.modules.texts.service import (
+    create_new_version,
+    find_duplicate_texts,
+    get_text_with_versions,
+    list_texts,
+    set_text_enabled,
+)
 
 
-def make_text(db_session, french_text=None) -> Text:
+def make_text(db_session, french_text=None, difficulty=Difficulty.B2) -> Text:
     text = Text(source="test")
     db_session.add(text)
     db_session.flush()
@@ -12,7 +18,7 @@ def make_text(db_session, french_text=None) -> Text:
         text_id=text.id,
         french_text=french_text or f"Texte {uuid.uuid4()}",
         exercise_type=ExerciseType.TRANSLATION,
-        difficulty=Difficulty.B2,
+        difficulty=difficulty,
         contexts=[],
     )
     db_session.add(version)
@@ -90,3 +96,36 @@ class TestCreateNewVersion:
             assert False, "expected ValueError"
         except ValueError:
             pass
+
+
+class TestFindDuplicateTexts:
+    def test_scopes_to_the_requested_difficulty(self, db_session):
+        make_text(db_session, french_text="Bonjour le monde", difficulty=Difficulty.B2)
+        make_text(db_session, french_text="Bonjour le monde", difficulty=Difficulty.C1)
+
+        groups = find_duplicate_texts(db_session, Difficulty.B2)
+
+        assert groups == []
+
+    def test_a_single_text_is_not_a_duplicate_of_itself(self, db_session):
+        make_text(db_session, french_text="Bonjour le monde")
+
+        assert find_duplicate_texts(db_session, Difficulty.B2) == []
+
+    def test_ignores_disabled_texts(self, db_session):
+        survivor = make_text(db_session, french_text="Bonjour le monde")
+        dupe = make_text(db_session, french_text="bonjour   le monde")
+        set_text_enabled(db_session, dupe.id, False)
+
+        assert find_duplicate_texts(db_session, Difficulty.B2) == []
+        assert survivor.enabled is True
+
+    def test_groups_normalized_duplicates_keeping_the_oldest_as_survivor(self, db_session):
+        survivor = make_text(db_session, french_text="Bonjour le monde")
+        dupe = make_text(db_session, french_text="  BONJOUR   le monde  ")
+
+        groups = find_duplicate_texts(db_session, Difficulty.B2)
+
+        assert len(groups) == 1
+        assert groups[0].survivor_id == survivor.id
+        assert groups[0].duplicate_ids == [dupe.id]

@@ -14,21 +14,27 @@ import {
   fetchAdminUserTextBank,
   fetchAdminUsers,
   fetchImportBatches,
+  previewDuplicateTexts,
   previewImport,
+  resolveDuplicateTexts,
 } from "../../api/admin";
 import type {
   AdminTextSummary,
   AdminUser,
   AdminUserTextBankItem,
+  DuplicatesPreview,
   ImportBatch,
   ImportPreview,
 } from "../../api/admin";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { DIFFICULTY_LABELS } from "../../constants/difficulty";
 import {
   TEXT_PROGRESS_STATUS_LABELS,
   TEXT_PROGRESS_STATUS_PILL,
 } from "../../constants/textProgressStatus";
 import { useAuth } from "../auth/AuthContext";
+
+const CEFR_LEVELS = Object.keys(DIFFICULTY_LABELS);
 
 type Tab = "texts" | "imports" | "users";
 
@@ -68,6 +74,12 @@ export function AdminPage() {
 function TextsTab() {
   const [texts, setTexts] = useState<AdminTextSummary[] | null>(null);
   const [search, setSearch] = useState("");
+  const [dupLevel, setDupLevel] = useState(CEFR_LEVELS[0]);
+  const [dupPreview, setDupPreview] = useState<DuplicatesPreview | null>(null);
+  const [isCheckingDup, setIsCheckingDup] = useState(false);
+  const [isResolvingDup, setIsResolvingDup] = useState(false);
+  const [showResolveConfirm, setShowResolveConfirm] = useState(false);
+  const [dupError, setDupError] = useState<string | null>(null);
 
   function reload() {
     fetchAdminTexts(search || undefined).then(setTexts).catch(() => setTexts([]));
@@ -87,8 +99,97 @@ function TextsTab() {
     reload();
   }
 
+  async function checkDuplicates() {
+    setDupError(null);
+    setIsCheckingDup(true);
+    try {
+      const result = await previewDuplicateTexts(dupLevel);
+      setDupPreview(result);
+    } catch {
+      setDupError("Impossible de vérifier les doublons pour le moment.");
+    } finally {
+      setIsCheckingDup(false);
+    }
+  }
+
+  async function handleResolveDuplicates() {
+    setShowResolveConfirm(false);
+    setIsResolvingDup(true);
+    try {
+      await resolveDuplicateTexts(dupLevel);
+      await checkDuplicates();
+      reload();
+    } catch {
+      setDupError("La suppression des doublons a échoué.");
+    } finally {
+      setIsResolvingDup(false);
+    }
+  }
+
+  const totalAffectedUsers = dupPreview?.groups.reduce((sum, g) => sum + g.affected_user_count, 0) ?? 0;
+
   return (
     <div>
+      <div className="card">
+        <h2>Détection de doublons</h2>
+        <p className="explore-hint">
+          Compare les textes actifs d'un niveau CEFR et repère ceux dont le texte français est
+          identique (espaces et casse ignorés). Le plus ancien de chaque groupe est conservé, les
+          autres sont désactivés — y compris s'ils sont déjà en cours d'utilisation.
+        </p>
+        <div className="admin-search-row">
+          <select value={dupLevel} onChange={(e) => setDupLevel(e.target.value)}>
+            {CEFR_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {DIFFICULTY_LABELS[level]}
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={checkDuplicates} disabled={isCheckingDup}>
+            {isCheckingDup ? "Vérification..." : "Vérifier les doublons"}
+          </button>
+        </div>
+        {dupError && <p className="error-text">{dupError}</p>}
+        {dupPreview && (
+          <div className="import-preview">
+            {dupPreview.groups.length === 0 ? (
+              <p className="success-text">Aucun doublon trouvé pour ce niveau.</p>
+            ) : (
+              <>
+                <p>
+                  {dupPreview.groups.length} groupe(s) de doublons · {totalAffectedUsers}{" "}
+                  utilisateur(s) affecté(s) au total
+                </p>
+                <ul className="import-preview-list">
+                  {dupPreview.groups.map((group, i) => (
+                    <li key={i}>
+                      {group.french_text} — {group.duplicate_count} doublon(s), {group.affected_user_count}{" "}
+                      utilisateur(s) affecté(s)
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setShowResolveConfirm(true)}
+                  disabled={isResolvingDup}
+                >
+                  {isResolvingDup ? "Suppression..." : "Confirmer la suppression des doublons"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {showResolveConfirm && (
+          <ConfirmDialog
+            title="Supprimer ces doublons ?"
+            message={`${dupPreview?.groups.length ?? 0} texte(s) seront désactivés définitivement, affectant ${totalAffectedUsers} utilisateur(s) — y compris ceux les ayant déjà actifs ou acquis. Cette action est irréversible.`}
+            confirmLabel="Supprimer"
+            onConfirm={handleResolveDuplicates}
+            onCancel={() => setShowResolveConfirm(false)}
+          />
+        )}
+      </div>
       <div className="admin-search-row">
         <input
           type="text"

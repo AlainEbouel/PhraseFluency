@@ -1,15 +1,7 @@
 import json
 
-from app.modules.imports.engine import ImportRow, normalize_french_text, validate_and_dedupe_rows
+from app.modules.imports.engine import ImportRow, validate_and_dedupe_rows
 from app.modules.imports.parsing import ImportParseError, parse_csv, parse_json
-
-
-class TestNormalizeFrenchText:
-    def test_trims_and_collapses_whitespace(self):
-        assert normalize_french_text("  Bonjour   le monde  ") == "bonjour le monde"
-
-    def test_is_case_insensitive(self):
-        assert normalize_french_text("Bonjour") == normalize_french_text("BONJOUR")
 
 
 class TestValidateAndDedupeRows:

@@ -9,10 +9,10 @@ from app.modules.texts.models import Difficulty, ExerciseType, Text, TextVersion
 
 
 def existing_normalized_texts(db: Session) -> set[str]:
+    # Compares against every text, enabled or not, so a disabled text's
+    # exact wording can never be reintroduced by a later import.
     rows = db.execute(
-        select(TextVersion.french_text)
-        .join(Text, Text.current_version_id == TextVersion.id)
-        .where(Text.enabled.is_(True))
+        select(TextVersion.french_text).join(Text, Text.current_version_id == TextVersion.id)
     ).scalars().all()
     return {normalize_french_text(text) for text in rows}
 

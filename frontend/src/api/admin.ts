@@ -64,6 +64,34 @@ export function enableText(textId: string): Promise<AdminTextDetail> {
   return apiRequest(`/api/v1/admin/texts/${textId}/enable`, { method: "PATCH" });
 }
 
+export interface DuplicateGroup {
+  french_text: string;
+  survivor_id: string;
+  duplicate_count: number;
+  affected_user_count: number;
+}
+
+export interface DuplicatesPreview {
+  difficulty: string;
+  groups: DuplicateGroup[];
+}
+
+export interface DuplicatesResolveResult {
+  groups_resolved: number;
+  texts_disabled: number;
+  users_affected: number;
+}
+
+export function previewDuplicateTexts(difficulty: string): Promise<DuplicatesPreview> {
+  return apiRequest(`/api/v1/admin/texts/duplicates?difficulty=${difficulty}`);
+}
+
+export function resolveDuplicateTexts(difficulty: string): Promise<DuplicatesResolveResult> {
+  return apiRequest(`/api/v1/admin/texts/duplicates/resolve?difficulty=${difficulty}`, {
+    method: "POST",
+  });
+}
+
 export function fetchImportBatches(): Promise<ImportBatch[]> {
   return apiRequest("/api/v1/admin/import-batches");
 }

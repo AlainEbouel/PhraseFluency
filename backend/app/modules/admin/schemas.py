@@ -46,6 +46,24 @@ class UpdateTextVersionIn(BaseModel):
     skills: list[str] = []
 
 
+class DuplicateGroupOut(BaseModel):
+    french_text: str
+    survivor_id: uuid.UUID
+    duplicate_count: int
+    affected_user_count: int
+
+
+class DuplicatesPreviewOut(BaseModel):
+    difficulty: Difficulty
+    groups: list[DuplicateGroupOut]
+
+
+class DuplicatesResolveOut(BaseModel):
+    groups_resolved: int
+    texts_disabled: int
+    users_affected: int
+
+
 class ImportBatchOut(BaseModel):
     id: uuid.UUID
     filename: str

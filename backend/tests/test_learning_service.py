@@ -1294,6 +1294,89 @@ class TestReportText:
             service.report_text(db_session, engine, user, uuid.uuid4())
 
 
+class TestResolveDuplicateTexts:
+    def test_disables_every_duplicate_but_the_survivor(self, db_session):
+        survivor = make_text(db_session, french_text="Bonjour le monde")
+        dupe = make_text(db_session, french_text="  BONJOUR   le monde  ")
+
+        result = service.resolve_duplicate_texts(db_session, Difficulty.B2)
+
+        assert result.groups_resolved == 1
+        assert result.texts_disabled == 1
+        db_session.refresh(survivor)
+        db_session.refresh(dupe)
+        assert survivor.enabled is True
+        assert dupe.enabled is False
+
+    def test_evicts_an_active_user_with_backfill(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session, french_text="Bonjour le monde")
+        dupe = make_text(db_session, french_text="bonjour le monde")
+        make_text(db_session)  # unseen spare, available to backfill the evicted slot
+        progress = UserTextProgress(
+            user_id=user.id, text_id=dupe.id, status=TextProgressStatus.ACTIVE,
+            rotation_position=1,
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        result = service.resolve_duplicate_texts(db_session, Difficulty.B2)
+
+        assert result.users_affected == 1
+        db_session.refresh(progress)
+        assert progress.status == TextProgressStatus.DISABLED
+        active_ids = {
+            row.text_id
+            for row in db_session.scalars(
+                select(UserTextProgress).where(
+                    UserTextProgress.user_id == user.id,
+                    UserTextProgress.status == TextProgressStatus.ACTIVE,
+                )
+            ).all()
+        }
+        assert dupe.id not in active_ids
+        assert len(active_ids) >= 1
+
+    def test_evicts_a_user_who_already_mastered_it(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session, french_text="Bonjour le monde")
+        dupe = make_text(db_session, french_text="bonjour le monde")
+        progress = UserTextProgress(
+            user_id=user.id, text_id=dupe.id, status=TextProgressStatus.MASTERED
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        result = service.resolve_duplicate_texts(db_session, Difficulty.B2)
+
+        assert result.users_affected == 1
+        db_session.refresh(progress)
+        assert progress.status == TextProgressStatus.DISABLED
+
+    def test_scopes_to_the_given_difficulty(self, db_session):
+        make_text(db_session, french_text="Bonjour le monde", difficulty=Difficulty.B2)
+        c1_survivor = make_text(db_session, french_text="Au revoir", difficulty=Difficulty.C1)
+        c1_dupe = make_text(db_session, french_text="au revoir", difficulty=Difficulty.C1)
+
+        result = service.resolve_duplicate_texts(db_session, Difficulty.B2)
+
+        assert result.groups_resolved == 0
+        db_session.refresh(c1_survivor)
+        db_session.refresh(c1_dupe)
+        assert c1_survivor.enabled is True
+        assert c1_dupe.enabled is True
+
+    def test_rerunning_is_a_no_op(self, db_session):
+        make_text(db_session, french_text="Bonjour le monde")
+        make_text(db_session, french_text="bonjour le monde")
+        service.resolve_duplicate_texts(db_session, Difficulty.B2)
+
+        result = service.resolve_duplicate_texts(db_session, Difficulty.B2)
+
+        assert result.groups_resolved == 0
+        assert result.texts_disabled == 0
+
+
 class TestUpdateInsertionSettings:
     def test_updates_the_gap(self, db_session):
         user = make_user(db_session)

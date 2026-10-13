@@ -9,16 +9,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from app.modules.texts.engine import normalize_french_text
 from app.modules.texts.models import Difficulty, ExerciseType
 
 VALID_DIFFICULTIES = {d.value for d in Difficulty}
 VALID_EXERCISE_TYPES = {e.value for e in ExerciseType}
 DEFAULT_DIFFICULTY = Difficulty.B2.value
 DEFAULT_EXERCISE_TYPE = ExerciseType.TRANSLATION.value
-
-
-def normalize_french_text(text: str) -> str:
-    return " ".join(text.strip().casefold().split())
 
 
 @dataclass(frozen=True)

@@ -51,7 +51,7 @@ from app.modules.learning.models import UserLearningState, UserTextProgress
 from app.modules.tests.models import Test
 from app.modules.tests.service import assign_new_tests_if_ready
 from app.modules.texts.models import Difficulty, LinguisticReference, Text, TextVersion
-from app.modules.texts.service import set_text_enabled
+from app.modules.texts.service import find_duplicate_texts, set_text_enabled
 from app.modules.users.models import User
 from app.shared.ai_usage import record_ai_usage
 from app.shared.mixins import utcnow
@@ -948,6 +948,38 @@ def report_text(
         db.add(learning_state)
     db.commit()
     return ReportTextResult(confirmed=True)
+
+
+@dataclass(frozen=True)
+class DuplicateResolution:
+    groups_resolved: int
+    texts_disabled: int
+    users_affected: int
+
+
+def resolve_duplicate_texts(db: Session, difficulty: Difficulty) -> DuplicateResolution:
+    """Admin action: for every duplicate group at this level, disables every
+    copy but the oldest, globally, and evicts it from every user's bank -
+    active, mastered, or otherwise - backfilling where needed.
+
+    Recomputes the duplicate groups itself rather than trusting a
+    client-submitted list, so a concurrent import can't race the admin's
+    preview-then-confirm flow.
+    """
+    groups = find_duplicate_texts(db, difficulty)
+    affected_users: set[uuid.UUID] = set()
+    texts_disabled = 0
+    for group in groups:
+        for text_id in group.duplicate_ids:
+            set_text_enabled(db, text_id, False)
+            rows = db.scalars(
+                select(UserTextProgress).where(UserTextProgress.text_id == text_id)
+            ).all()
+            for row in rows:
+                disable_text_for_user(db, row.user_id, text_id)
+                affected_users.add(row.user_id)
+            texts_disabled += 1
+    return DuplicateResolution(len(groups), texts_disabled, len(affected_users))
 
 
 def get_user_text_bank_item(

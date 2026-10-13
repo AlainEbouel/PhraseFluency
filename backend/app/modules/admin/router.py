@@ -1,11 +1,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.modules.admin.schemas import (
+    DuplicatesPreviewOut,
+    DuplicatesResolveOut,
+    DuplicateGroupOut,
     ImportBatchOut,
     TextDetailOut,
     TextSummaryOut,
@@ -17,7 +20,9 @@ from app.modules.admin.schemas import (
 from app.modules.auth.dependencies import require_admin
 from app.modules.imports.models import ImportBatch
 from app.modules.learning import service as learning_service
+from app.modules.learning.models import UserTextProgress
 from app.modules.texts import service as texts_service
+from app.modules.texts.models import Difficulty
 from app.modules.users import service as users_service
 from app.modules.users.models import User
 from app.modules.users.schemas import UserCreate, UserOut
@@ -57,6 +62,45 @@ def list_texts(
         )
         for t in texts
     ]
+
+
+@router.get("/texts/duplicates", response_model=DuplicatesPreviewOut)
+def preview_duplicate_texts(
+    difficulty: Difficulty,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    groups = texts_service.find_duplicate_texts(db, difficulty)
+    out_groups = []
+    for group in groups:
+        affected_user_count = db.scalar(
+            select(func.count())
+            .select_from(UserTextProgress)
+            .where(UserTextProgress.text_id.in_(group.duplicate_ids))
+        )
+        out_groups.append(
+            DuplicateGroupOut(
+                french_text=group.french_text,
+                survivor_id=group.survivor_id,
+                duplicate_count=len(group.duplicate_ids),
+                affected_user_count=affected_user_count,
+            )
+        )
+    return DuplicatesPreviewOut(difficulty=difficulty, groups=out_groups)
+
+
+@router.post("/texts/duplicates/resolve", response_model=DuplicatesResolveOut)
+def resolve_duplicate_texts(
+    difficulty: Difficulty,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    result = learning_service.resolve_duplicate_texts(db, difficulty)
+    return DuplicatesResolveOut(
+        groups_resolved=result.groups_resolved,
+        texts_disabled=result.texts_disabled,
+        users_affected=result.users_affected,
+    )
 
 
 @router.get("/texts/{text_id}", response_model=TextDetailOut)

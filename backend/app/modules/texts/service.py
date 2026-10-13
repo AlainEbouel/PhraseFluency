@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.modules.texts.engine import DuplicateGroup, group_duplicates
 from app.modules.texts.models import Difficulty, ExerciseType, Pattern, Text, TextVersion
 
 
@@ -60,6 +61,16 @@ def set_text_enabled(db: Session, text_id: uuid.UUID, enabled: bool) -> Text:
     db.commit()
     db.refresh(text)
     return text
+
+
+def find_duplicate_texts(db: Session, difficulty: Difficulty) -> list[DuplicateGroup]:
+    rows = db.execute(
+        select(Text.id, TextVersion.french_text)
+        .join(TextVersion, Text.current_version_id == TextVersion.id)
+        .where(Text.enabled.is_(True), TextVersion.difficulty == difficulty)
+        .order_by(Text.created_at.asc())
+    ).all()
+    return group_duplicates([(row.id, row.french_text) for row in rows])
 
 
 def create_new_version(

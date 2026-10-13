@@ -60,7 +60,7 @@ class TestConfirmImport:
 
 
 class TestExistingNormalizedTexts:
-    def test_only_includes_enabled_texts(self, db_session):
+    def test_includes_disabled_texts_too(self, db_session):
         admin = make_admin(db_session)
         confirm_import(
             db_session, filename="t.csv", rows=[ImportRow(french_text="Bonjour")], imported_by=admin.id
@@ -69,4 +69,6 @@ class TestExistingNormalizedTexts:
         text.enabled = False
         db_session.flush()
 
-        assert "bonjour" not in existing_normalized_texts(db_session)
+        # A disabled text's exact wording must stay blocked, so it can
+        # never be reintroduced by a later import.
+        assert "bonjour" in existing_normalized_texts(db_session)
