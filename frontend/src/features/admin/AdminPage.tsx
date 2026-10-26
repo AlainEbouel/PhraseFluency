@@ -39,6 +39,9 @@ import { useAuth } from "../auth/AuthContext";
 
 const CEFR_LEVELS = Object.keys(DIFFICULTY_LABELS);
 
+// Mirrors DEFAULT_ACTIVE_BANK_SIZE in backend/app/modules/learning/engine.py.
+const ACTIVE_BANK_TARGET = 100;
+
 type Tab = "texts" | "imports" | "users";
 
 export function AdminPage() {
@@ -545,6 +548,7 @@ function UsersTab() {
               <th>Email</th>
               <th>Rôle</th>
               <th>Statut</th>
+              <th>Banque active</th>
               <th>Créé le</th>
               <th>Dernière connexion</th>
               <th></th>
@@ -560,6 +564,20 @@ function UsersTab() {
                 <td>
                   <span className={user.is_active ? "pill pill-good" : "pill pill-critical"}>
                     {user.is_active ? "Actif" : "Désactivé"}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    className={
+                      user.active_text_count >= ACTIVE_BANK_TARGET ? "pill pill-good" : "pill pill-warning"
+                    }
+                    title={
+                      user.active_text_count < ACTIVE_BANK_TARGET
+                        ? "Banque sous la cible — envisager d'importer plus de textes à son niveau."
+                        : undefined
+                    }
+                  >
+                    {user.active_text_count}/{ACTIVE_BANK_TARGET}
                   </span>
                 </td>
                 <td>{new Date(user.created_at).toLocaleDateString()}</td>

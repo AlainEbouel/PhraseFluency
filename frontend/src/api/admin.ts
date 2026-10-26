@@ -45,6 +45,7 @@ export interface AdminUser {
   is_active: boolean;
   created_at: string;
   last_login_at: string | null;
+  active_text_count: number;
 }
 
 export function fetchAdminTexts(search?: string): Promise<AdminTextSummary[]> {

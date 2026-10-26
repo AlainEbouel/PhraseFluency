@@ -150,6 +150,29 @@ class TestActiveBankBootstrap:
         assert activated_again == 0
 
 
+class TestActiveTextCounts:
+    def test_counts_only_active_texts_per_user(self, db_session):
+        user_a = make_user(db_session)
+        user_b = make_user(db_session)
+        for _ in range(7):
+            make_text(db_session)
+        service.activate_up_to_bank_target(db_session, user_a.id, target=3)
+        service.activate_up_to_bank_target(db_session, user_b.id, target=5)
+        db_session.commit()
+
+        counts = service.active_text_counts(db_session)
+
+        assert counts[user_a.id] == 3
+        assert counts[user_b.id] == 5
+
+    def test_a_user_with_no_active_texts_is_absent(self, db_session):
+        make_user_without_level(db_session)
+
+        counts = service.active_text_counts(db_session)
+
+        assert counts == {}
+
+
 class TestLevelSelection:
     def test_nothing_activates_before_a_level_is_chosen(self, db_session):
         user = make_user_without_level(db_session)

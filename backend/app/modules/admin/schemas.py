@@ -101,6 +101,7 @@ class UserSummaryOut(BaseModel):
     is_active: bool
     created_at: datetime
     last_login_at: datetime | None
+    active_text_count: int
 
     model_config = {"from_attributes": True}
 

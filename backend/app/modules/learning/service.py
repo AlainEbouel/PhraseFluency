@@ -247,6 +247,20 @@ def _active_count(db: Session, user_id: uuid.UUID) -> int:
     )
 
 
+def active_text_counts(db: Session) -> dict[uuid.UUID, int]:
+    """Active text count per user, across every user — admin dashboard use.
+
+    Users with zero active texts are absent from the result; callers
+    should default to 0 for them.
+    """
+    rows = db.execute(
+        select(UserTextProgress.user_id, func.count())
+        .where(UserTextProgress.status == TextProgressStatus.ACTIVE)
+        .group_by(UserTextProgress.user_id)
+    ).all()
+    return {row[0]: row[1] for row in rows}
+
+
 def activate_up_to_bank_target(
     db: Session, user_id: uuid.UUID, target: int = DEFAULT_ACTIVE_BANK_SIZE
 ) -> int:

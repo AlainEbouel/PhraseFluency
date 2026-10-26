@@ -199,10 +199,23 @@ def list_import_batches(
     return [ImportBatchOut.model_validate(b) for b in batches]
 
 
+def _user_summary(user: User, active_text_count: int) -> UserSummaryOut:
+    return UserSummaryOut(
+        id=user.id,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+        active_text_count=active_text_count,
+    )
+
+
 @router.get("/users", response_model=list[UserSummaryOut])
 def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     users = db.scalars(select(User).order_by(User.created_at)).all()
-    return [UserSummaryOut.model_validate(u) for u in users]
+    counts = learning_service.active_text_counts(db)
+    return [_user_summary(u, counts.get(u.id, 0)) for u in users]
 
 
 @router.post("/users", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -228,7 +241,7 @@ def disable_user(
         user = users_service.set_user_active(db, user_id, False, acting_user_id=_admin.id)
     except ValueError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
-    return UserSummaryOut.model_validate(user)
+    return _user_summary(user, learning_service.active_text_counts(db).get(user.id, 0))
 
 
 @router.patch("/users/{user_id}/enable", response_model=UserSummaryOut)
@@ -241,7 +254,7 @@ def enable_user(
         user = users_service.set_user_active(db, user_id, True)
     except ValueError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
-    return UserSummaryOut.model_validate(user)
+    return _user_summary(user, learning_service.active_text_counts(db).get(user.id, 0))
 
 
 def _bank_item(row: tuple) -> UserTextBankItemOut:
