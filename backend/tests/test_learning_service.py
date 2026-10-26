@@ -1122,6 +1122,55 @@ class TestRepetitionAndAcquisition:
         assert progress.required_natural_equivalents == 2
         assert progress.required_score == 4
 
+    def test_increase_repetition_reopens_a_just_mastered_text(self, db_session):
+        user = make_user(db_session)
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        text_id = next_ex.progress.text_id
+        progress = db_session.get(UserTextProgress, (user.id, text_id))
+        progress.status = TextProgressStatus.MASTERED
+        progress.mastery_score = 4
+        db_session.commit()
+
+        updated = service.increase_repetition_for_text(db_session, user.id, text_id)
+
+        assert updated.status == TextProgressStatus.ACTIVE
+        assert updated.required_score == 6
+
+    def test_decrease_repetition_completing_into_test_waiting_triggers_assignment_once_ready(
+        self, db_session
+    ):
+        user = make_user(db_session)
+        for _ in range(24):
+            text = make_text(db_session)
+            db_session.add(
+                UserTextProgress(
+                    user_id=user.id, text_id=text.id,
+                    status=TextProgressStatus.WAITING_FOR_TEST_ASSIGNMENT,
+                )
+            )
+        make_text(db_session)
+        next_ex = service.get_next_exercise(db_session, user)
+        text_id = next_ex.progress.text_id
+        service.increase_repetition_for_text(db_session, user.id, text_id)
+        progress = db_session.get(UserTextProgress, (user.id, text_id))
+        progress.mastery_score = 4
+        progress.perfect_learning_record = False
+        db_session.commit()
+
+        updated = service.decrease_repetition_for_text(db_session, user.id, text_id)
+
+        # The 25th waiting text is immediately swept into a full batch in
+        # this same call, so its final status is TEST_ASSIGNED, not
+        # WAITING_FOR_TEST_ASSIGNMENT - this is the batching itself at work.
+        assert updated.status == TextProgressStatus.TEST_ASSIGNED
+        tests_created = db_session.scalars(select(Test).where(Test.user_id == user.id)).all()
+        assert len(tests_created) == 1
+        test_texts = db_session.scalars(
+            select(TestText).where(TestText.test_id == tests_created[0].id)
+        ).all()
+        assert len(test_texts) == 25
+
     def test_manual_acquisition_does_not_count_as_correct_and_backfills_bank(self, db_session):
         user = make_user(db_session)
         for _ in range(2):

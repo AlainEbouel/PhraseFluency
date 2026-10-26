@@ -380,6 +380,7 @@ export function LearningPage() {
     try {
       const result = await increaseRepetition(exercise.text_id);
       setExercise({ ...exercise, progress: result.progress });
+      setFeedback((prev) => (prev ? { ...prev, progress: result.progress } : prev));
       setRepetitionMessage(
         `Répétition augmentée : ${result.progress.required_natural_equivalents} réponses naturelles requises maintenant.`
       );
@@ -393,6 +394,7 @@ export function LearningPage() {
     try {
       const result = await decreaseRepetition(exercise.text_id);
       setExercise({ ...exercise, progress: result.progress });
+      setFeedback((prev) => (prev ? { ...prev, progress: result.progress } : prev));
       setRepetitionMessage(
         `Répétition diminuée : ${result.progress.required_natural_equivalents} réponses naturelles requises maintenant.`
       );
@@ -571,8 +573,10 @@ export function LearningPage() {
         <h2 className="french-text">🎧 Compréhension orale</h2>
         {(dictationResult ?? dictationExercise) && (
           <p className="progress-indicator">
-            Série : {dictationResult?.series_progress ?? dictationExercise?.series_progress}/
-            {dictationResult?.series_goal ?? dictationExercise?.series_goal}
+            Série :{" "}
+            {dictationResult?.series_progress ??
+              (dictationExercise ? dictationExercise.series_progress + 1 : 0)}
+            /{dictationResult?.series_goal ?? dictationExercise?.series_goal}
           </p>
         )}
 
@@ -653,7 +657,7 @@ export function LearningPage() {
     <div className={`learning-screen${phase === "feedback" ? " learning-screen-wide" : ""}`}>
       {exercise.is_review && <span className="review-badge">Révision</span>}
       <p className="progress-indicator">
-        Série : {feedback?.series_progress ?? exercise.series_progress}/
+        Série : {feedback?.series_progress ?? exercise.series_progress + 1}/
         {feedback?.series_goal ?? exercise.series_goal}
       </p>
       <Meter
@@ -920,6 +924,12 @@ export function LearningPage() {
                     Marquer comme acquis
                   </button>
                 </>
+              )}
+              {(feedback.progress.status === "MASTERED" ||
+                feedback.progress.status === "WAITING_FOR_TEST_ASSIGNMENT") && (
+                <button type="button" onClick={handleRepetition}>
+                  +1 répétition
+                </button>
               )}
               <button type="button" onClick={() => setShowChat((v) => !v)}>
                 Demander à l'IA

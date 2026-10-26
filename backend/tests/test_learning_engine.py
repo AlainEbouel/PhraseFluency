@@ -257,6 +257,75 @@ class TestRepetitionThreshold:
         assert progress.required_natural_equivalents == 2
         assert progress.required_score == 4
 
+    @pytest.mark.parametrize(
+        "status", [TextProgressStatus.MASTERED, TextProgressStatus.WAITING_FOR_TEST_ASSIGNMENT]
+    )
+    def test_increase_reopens_a_completed_text_whose_score_now_falls_short(self, status):
+        progress = TextProgressState(
+            status=status, mastery_score=4, required_score=4, required_natural_equivalents=2
+        )
+        result = increase_repetition(progress)
+        assert result.required_score == 6
+        assert result.status == TextProgressStatus.ACTIVE
+
+    def test_increase_does_not_reopen_when_score_still_meets_the_new_threshold(self):
+        progress = TextProgressState(
+            status=TextProgressStatus.MASTERED, mastery_score=10, required_score=4
+        )
+        result = increase_repetition(progress)
+        assert result.required_score == 6
+        assert result.status == TextProgressStatus.MASTERED
+
+    @pytest.mark.parametrize(
+        "status",
+        [
+            TextProgressStatus.TEST_ASSIGNED,
+            TextProgressStatus.DISABLED,
+            TextProgressStatus.BENCHED,
+            TextProgressStatus.MANUALLY_ACQUIRED,
+            TextProgressStatus.UNSEEN,
+        ],
+    )
+    def test_increase_never_reopens_statuses_unrelated_to_score(self, status):
+        progress = TextProgressState(status=status, mastery_score=4, required_score=4)
+        result = increase_repetition(progress)
+        assert result.status == status
+
+    def test_decrease_completes_an_active_text_with_a_perfect_record(self):
+        progress = TextProgressState(
+            status=TextProgressStatus.ACTIVE,
+            mastery_score=4,
+            required_score=6,
+            perfect_learning_record=True,
+            next_review_at_exercise=50,
+        )
+        result = decrease_repetition(progress)
+        assert result.required_score == 4
+        assert result.status == TextProgressStatus.MASTERED
+        assert result.next_review_at_exercise is None
+
+    def test_decrease_completes_an_active_text_with_an_imperfect_record_to_waiting_for_test(self):
+        progress = TextProgressState(
+            status=TextProgressStatus.ACTIVE,
+            mastery_score=4,
+            required_score=6,
+            perfect_learning_record=False,
+        )
+        result = decrease_repetition(progress)
+        assert result.status == TextProgressStatus.WAITING_FOR_TEST_ASSIGNMENT
+
+    def test_decrease_does_not_complete_when_score_still_falls_short(self):
+        progress = TextProgressState(
+            status=TextProgressStatus.ACTIVE,
+            mastery_score=2,
+            required_score=6,
+            next_review_at_exercise=50,
+        )
+        result = decrease_repetition(progress)
+        assert result.required_score == 4
+        assert result.status == TextProgressStatus.ACTIVE
+        assert result.next_review_at_exercise == 50
+
 
 class TestManualAcquisition:
     def test_manual_acquisition_does_not_count_as_correct(self):

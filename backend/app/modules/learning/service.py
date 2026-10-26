@@ -841,8 +841,15 @@ def decrease_repetition_for_text(
     progress = db.get(UserTextProgress, (user_id, text_id))
     if progress is None:
         raise ValueError("No progress found for this text")
-    _apply_domain(progress, decrease_repetition(_to_domain(progress)))
+    outcome = decrease_repetition(_to_domain(progress))
+    entered_test_waiting = (
+        progress.status != TextProgressStatus.WAITING_FOR_TEST_ASSIGNMENT
+        and outcome.status == TextProgressStatus.WAITING_FOR_TEST_ASSIGNMENT
+    )
+    _apply_domain(progress, outcome)
     db.add(progress)
+    if entered_test_waiting:
+        assign_new_tests_if_ready(db, user_id)
     db.commit()
     return progress
 

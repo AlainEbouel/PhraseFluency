@@ -177,12 +177,28 @@ def record_attempt(
     )
 
 
+_COMPLETED_BY_SCORE_STATUSES = (
+    TextProgressStatus.MASTERED,
+    TextProgressStatus.WAITING_FOR_TEST_ASSIGNMENT,
+)
+
+
 def increase_repetition(progress: TextProgressState) -> TextProgressState:
+    new_required_natural_equivalents = (
+        progress.required_natural_equivalents + REPETITION_NATURAL_EQUIVALENT_INCREMENT
+    )
+    new_required_score = progress.required_score + REPETITION_SCORE_INCREMENT
+    # Status is derived from score vs. threshold, never set independently:
+    # raising the bar can pull a just-completed text back into rotation.
+    reopens = (
+        progress.status in _COMPLETED_BY_SCORE_STATUSES
+        and progress.mastery_score < new_required_score
+    )
     return replace(
         progress,
-        required_natural_equivalents=progress.required_natural_equivalents
-        + REPETITION_NATURAL_EQUIVALENT_INCREMENT,
-        required_score=progress.required_score + REPETITION_SCORE_INCREMENT,
+        required_natural_equivalents=new_required_natural_equivalents,
+        required_score=new_required_score,
+        status=TextProgressStatus.ACTIVE if reopens else progress.status,
     )
 
 
@@ -190,15 +206,34 @@ def decrease_repetition(progress: TextProgressState) -> TextProgressState:
     # Floored at the defaults rather than tracked separately: nothing else
     # mutates these two fields, so the floor alone already guarantees you
     # can undo exactly as many increases as you made, never fewer.
+    new_required_natural_equivalents = max(
+        DEFAULT_REQUIRED_NATURAL_EQUIVALENTS,
+        progress.required_natural_equivalents - REPETITION_NATURAL_EQUIVALENT_INCREMENT,
+    )
+    new_required_score = max(
+        DEFAULT_REQUIRED_SCORE, progress.required_score - REPETITION_SCORE_INCREMENT
+    )
+    # Symmetric case: lowering the bar can complete an active text right
+    # away - same branch record_attempt uses on a normal completion.
+    completes_now = (
+        progress.status == TextProgressStatus.ACTIVE
+        and progress.mastery_score >= new_required_score
+    )
+    new_status = progress.status
+    next_review = progress.next_review_at_exercise
+    if completes_now:
+        new_status = (
+            TextProgressStatus.MASTERED
+            if progress.perfect_learning_record
+            else TextProgressStatus.WAITING_FOR_TEST_ASSIGNMENT
+        )
+        next_review = None
     return replace(
         progress,
-        required_natural_equivalents=max(
-            DEFAULT_REQUIRED_NATURAL_EQUIVALENTS,
-            progress.required_natural_equivalents - REPETITION_NATURAL_EQUIVALENT_INCREMENT,
-        ),
-        required_score=max(
-            DEFAULT_REQUIRED_SCORE, progress.required_score - REPETITION_SCORE_INCREMENT
-        ),
+        required_natural_equivalents=new_required_natural_equivalents,
+        required_score=new_required_score,
+        status=new_status,
+        next_review_at_exercise=next_review,
     )
 
 
